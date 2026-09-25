@@ -11,7 +11,8 @@ const water = "#3a91b5";
 const navy = "#183d52";
 
 function Pipe({ position, rotation, length, radius = 0.24 }: { position: [number, number, number]; rotation?: [number, number, number]; length: number; radius?: number }) {
-  return <mesh position={position} rotation={rotation} castShadow receiveShadow><cylinderGeometry args={[radius, radius, length, 32]}/><meshStandardMaterial color={copper} metalness={0.82} roughness={0.24}/></mesh>;
+  const rotationProps = rotation ? { rotation } : {};
+  return <mesh position={position} {...rotationProps} castShadow receiveShadow><cylinderGeometry args={[radius, radius, length, 32]}/><meshStandardMaterial color={copper} metalness={0.82} roughness={0.24}/></mesh>;
 }
 
 function Joint({ position, radius = 0.32 }: { position: [number, number, number]; radius?: number }) {
