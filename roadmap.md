@@ -1,0 +1,7 @@
+# VVS Flow roadmap
+
+- [x] Build design system and reusable product components
+- [x] Build customer routes and booking interactions
+- [x] Build owner routes and operational interactions
+- [x] Add centralized demo data and mock service boundaries
+- [x] Verify responsive layouts, core flows, metadata, and preview health
