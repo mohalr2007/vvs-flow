@@ -6,14 +6,14 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const items = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
-  { to: "/dashboard/jobs", label: "Jobs", icon: BriefcaseBusiness },
-  { to: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
-  { to: "/dashboard/waitlist", label: "Waitlist", icon: ListFilter },
-  { to: "/dashboard/leads", label: "Leads", icon: Users },
-  { to: "/dashboard/projects", label: "Projects", icon: FolderKanban },
-  { to: "/dashboard/inbox", label: "Inbox", icon: Inbox },
-  { to: "/dashboard/rot", label: "ROT", icon: ReceiptText },
-  { to: "/dashboard/settings", label: "Settings", icon: Settings },
+  { to: "/dashboard/jobs", label: "Jobs", exact: false, icon: BriefcaseBusiness },
+  { to: "/dashboard/calendar", label: "Calendar", exact: false, icon: CalendarDays },
+  { to: "/dashboard/waitlist", label: "Waitlist", exact: false, icon: ListFilter },
+  { to: "/dashboard/leads", label: "Leads", exact: false, icon: Users },
+  { to: "/dashboard/projects", label: "Projects", exact: false, icon: FolderKanban },
+  { to: "/dashboard/inbox", label: "Inbox", exact: false, icon: Inbox },
+  { to: "/dashboard/rot", label: "ROT", exact: false, icon: ReceiptText },
+  { to: "/dashboard/settings", label: "Settings", exact: false, icon: Settings },
 ] as const;
 
 function NavItems({ mobile = false }: { mobile?: boolean }) {
