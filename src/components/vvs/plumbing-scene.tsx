@@ -64,10 +64,18 @@ function PlumbingAssembly({ mode }: { mode: SceneMode }) {
 
 export function PlumbingScene({ mode = "flow", compact = false }: { mode?: SceneMode; compact?: boolean }) {
   const [mounted,setMounted]=useState(false);
-  useEffect(()=>setMounted(true),[]);
+  const [reducedMotion,setReducedMotion]=useState(false);
+  useEffect(()=>{
+    setMounted(true);
+    const media=window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync=()=>setReducedMotion(media.matches);
+    sync();
+    media.addEventListener("change",sync);
+    return ()=>media.removeEventListener("change",sync);
+  },[]);
   return <div className={compact ? "relative h-48 w-full sm:h-60" : "relative h-[360px] w-full sm:h-[460px] lg:h-[560px]"} aria-label="Animated three-dimensional copper plumbing system">
     <div className="absolute inset-x-[12%] bottom-[8%] h-1/3 rounded-full bg-copper/10 blur-3xl"/>
-    {!mounted ? <div className="absolute inset-0 plumbing-fallback"/> : <Canvas shadows dpr={[1,1.5]} camera={{position:[0,1.2,7.8],fov:35}} gl={{antialias:true,alpha:true}} style={{background:"transparent"}}>
+    {!mounted ? <div className="absolute inset-0 plumbing-fallback"/> : <Canvas shadows frameloop={reducedMotion ? "demand" : "always"} dpr={[1,1.5]} camera={{position:[0,1.2,7.8],fov:35}} gl={{antialias:true,alpha:true}} style={{background:"transparent"}}>
       <Suspense fallback={null}>
         <ambientLight intensity={.75}/><directionalLight position={[4,7,6]} intensity={2.2} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}/><pointLight position={[-4,-1,4]} intensity={1.3} color={water}/>
         <PlumbingAssembly mode={mode}/>
