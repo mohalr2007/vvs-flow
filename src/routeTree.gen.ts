@@ -11,10 +11,20 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BookRouteImport } from './routes/book'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EmergencyRouteImport } from './routes/emergency'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AccessTokenRouteImport } from './routes/access.$token'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardCalendarRouteImport } from './routes/dashboard.calendar'
+import { Route as DashboardInboxRouteImport } from './routes/dashboard.inbox'
+import { Route as DashboardJobsRouteImport } from './routes/dashboard.jobs'
+import { Route as DashboardLeadsRouteImport } from './routes/dashboard.leads'
+import { Route as DashboardProjectsRouteImport } from './routes/dashboard.projects'
+import { Route as DashboardWaitlistRouteImport } from './routes/dashboard.waitlist'
 import { Route as OfferTokenRouteImport } from './routes/offer.$token'
 import { Route as RescheduleTokenRouteImport } from './routes/reschedule.$token'
+import { Route as DashboardJobsJobIdRouteImport } from './routes/dashboard.jobs.$jobId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -26,15 +36,60 @@ const BookRoute = BookRouteImport.update({
   path: '/book',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmergencyRoute = EmergencyRouteImport.update({
   id: '/emergency',
   path: '/emergency',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccessTokenRoute = AccessTokenRouteImport.update({
   id: '/access/$token',
   path: '/access/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCalendarRoute = DashboardCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardInboxRoute = DashboardInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardJobsRoute = DashboardJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardLeadsRoute = DashboardLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardProjectsRoute = DashboardProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardWaitlistRoute = DashboardWaitlistRouteImport.update({
+  id: '/waitlist',
+  path: '/waitlist',
+  getParentRoute: () => DashboardRoute,
 } as any)
 const OfferTokenRoute = OfferTokenRouteImport.update({
   id: '/offer/$token',
@@ -46,63 +101,128 @@ const RescheduleTokenRoute = RescheduleTokenRouteImport.update({
   path: '/reschedule/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardJobsJobIdRoute = DashboardJobsJobIdRouteImport.update({
+  id: '/$jobId',
+  path: '/$jobId',
+  getParentRoute: () => DashboardJobsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/book': typeof BookRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/emergency': typeof EmergencyRoute
+  '/login': typeof LoginRoute
   '/access/$token': typeof AccessTokenRoute
+  '/dashboard/calendar': typeof DashboardCalendarRoute
+  '/dashboard/inbox': typeof DashboardInboxRoute
+  '/dashboard/jobs': typeof DashboardJobsRouteWithChildren
+  '/dashboard/leads': typeof DashboardLeadsRoute
+  '/dashboard/projects': typeof DashboardProjectsRoute
+  '/dashboard/waitlist': typeof DashboardWaitlistRoute
   '/offer/$token': typeof OfferTokenRoute
   '/reschedule/$token': typeof RescheduleTokenRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/jobs/$jobId': typeof DashboardJobsJobIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/book': typeof BookRoute
   '/emergency': typeof EmergencyRoute
+  '/login': typeof LoginRoute
   '/access/$token': typeof AccessTokenRoute
+  '/dashboard/calendar': typeof DashboardCalendarRoute
+  '/dashboard/inbox': typeof DashboardInboxRoute
+  '/dashboard/jobs': typeof DashboardJobsRouteWithChildren
+  '/dashboard/leads': typeof DashboardLeadsRoute
+  '/dashboard/projects': typeof DashboardProjectsRoute
+  '/dashboard/waitlist': typeof DashboardWaitlistRoute
   '/offer/$token': typeof OfferTokenRoute
   '/reschedule/$token': typeof RescheduleTokenRoute
+  '/dashboard': typeof DashboardIndexRoute
+  '/dashboard/jobs/$jobId': typeof DashboardJobsJobIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/book': typeof BookRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/emergency': typeof EmergencyRoute
+  '/login': typeof LoginRoute
   '/access/$token': typeof AccessTokenRoute
+  '/dashboard/calendar': typeof DashboardCalendarRoute
+  '/dashboard/inbox': typeof DashboardInboxRoute
+  '/dashboard/jobs': typeof DashboardJobsRouteWithChildren
+  '/dashboard/leads': typeof DashboardLeadsRoute
+  '/dashboard/projects': typeof DashboardProjectsRoute
+  '/dashboard/waitlist': typeof DashboardWaitlistRoute
   '/offer/$token': typeof OfferTokenRoute
   '/reschedule/$token': typeof RescheduleTokenRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/jobs/$jobId': typeof DashboardJobsJobIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/book'
+    | '/dashboard'
     | '/emergency'
+    | '/login'
     | '/access/$token'
+    | '/dashboard/calendar'
+    | '/dashboard/inbox'
+    | '/dashboard/jobs'
+    | '/dashboard/leads'
+    | '/dashboard/projects'
+    | '/dashboard/waitlist'
     | '/offer/$token'
     | '/reschedule/$token'
+    | '/dashboard/'
+    | '/dashboard/jobs/$jobId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/book'
     | '/emergency'
+    | '/login'
     | '/access/$token'
+    | '/dashboard/calendar'
+    | '/dashboard/inbox'
+    | '/dashboard/jobs'
+    | '/dashboard/leads'
+    | '/dashboard/projects'
+    | '/dashboard/waitlist'
     | '/offer/$token'
     | '/reschedule/$token'
+    | '/dashboard'
+    | '/dashboard/jobs/$jobId'
   id:
     | '__root__'
     | '/'
     | '/book'
+    | '/dashboard'
     | '/emergency'
+    | '/login'
     | '/access/$token'
+    | '/dashboard/calendar'
+    | '/dashboard/inbox'
+    | '/dashboard/jobs'
+    | '/dashboard/leads'
+    | '/dashboard/projects'
+    | '/dashboard/waitlist'
     | '/offer/$token'
     | '/reschedule/$token'
+    | '/dashboard/'
+    | '/dashboard/jobs/$jobId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BookRoute: typeof BookRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
   EmergencyRoute: typeof EmergencyRoute
+  LoginRoute: typeof LoginRoute
   AccessTokenRoute: typeof AccessTokenRoute
   OfferTokenRoute: typeof OfferTokenRoute
   RescheduleTokenRoute: typeof RescheduleTokenRoute
@@ -124,11 +244,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/emergency': {
       id: '/emergency'
       path: '/emergency'
       fullPath: '/emergency'
       preLoaderRoute: typeof EmergencyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/access/$token': {
@@ -137,6 +271,55 @@ declare module '@tanstack/react-router' {
       fullPath: '/access/$token'
       preLoaderRoute: typeof AccessTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/calendar': {
+      id: '/dashboard/calendar'
+      path: '/calendar'
+      fullPath: '/dashboard/calendar'
+      preLoaderRoute: typeof DashboardCalendarRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/inbox': {
+      id: '/dashboard/inbox'
+      path: '/inbox'
+      fullPath: '/dashboard/inbox'
+      preLoaderRoute: typeof DashboardInboxRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/jobs': {
+      id: '/dashboard/jobs'
+      path: '/jobs'
+      fullPath: '/dashboard/jobs'
+      preLoaderRoute: typeof DashboardJobsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/leads': {
+      id: '/dashboard/leads'
+      path: '/leads'
+      fullPath: '/dashboard/leads'
+      preLoaderRoute: typeof DashboardLeadsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/projects': {
+      id: '/dashboard/projects'
+      path: '/projects'
+      fullPath: '/dashboard/projects'
+      preLoaderRoute: typeof DashboardProjectsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/waitlist': {
+      id: '/dashboard/waitlist'
+      path: '/waitlist'
+      fullPath: '/dashboard/waitlist'
+      preLoaderRoute: typeof DashboardWaitlistRouteImport
+      parentRoute: typeof DashboardRoute
     }
     '/offer/$token': {
       id: '/offer/$token'
@@ -152,13 +335,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RescheduleTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/jobs/$jobId': {
+      id: '/dashboard/jobs/$jobId'
+      path: '/$jobId'
+      fullPath: '/dashboard/jobs/$jobId'
+      preLoaderRoute: typeof DashboardJobsJobIdRouteImport
+      parentRoute: typeof DashboardJobsRoute
+    }
   }
 }
+
+interface DashboardJobsRouteChildren {
+  DashboardJobsJobIdRoute: typeof DashboardJobsJobIdRoute
+}
+
+const DashboardJobsRouteChildren: DashboardJobsRouteChildren = {
+  DashboardJobsJobIdRoute: DashboardJobsJobIdRoute,
+}
+
+const DashboardJobsRouteWithChildren = DashboardJobsRoute._addFileChildren(
+  DashboardJobsRouteChildren,
+)
+
+interface DashboardRouteChildren {
+  DashboardCalendarRoute: typeof DashboardCalendarRoute
+  DashboardInboxRoute: typeof DashboardInboxRoute
+  DashboardJobsRoute: typeof DashboardJobsRouteWithChildren
+  DashboardLeadsRoute: typeof DashboardLeadsRoute
+  DashboardProjectsRoute: typeof DashboardProjectsRoute
+  DashboardWaitlistRoute: typeof DashboardWaitlistRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardCalendarRoute: DashboardCalendarRoute,
+  DashboardInboxRoute: DashboardInboxRoute,
+  DashboardJobsRoute: DashboardJobsRouteWithChildren,
+  DashboardLeadsRoute: DashboardLeadsRoute,
+  DashboardProjectsRoute: DashboardProjectsRoute,
+  DashboardWaitlistRoute: DashboardWaitlistRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BookRoute: BookRoute,
+  DashboardRoute: DashboardRouteWithChildren,
   EmergencyRoute: EmergencyRoute,
+  LoginRoute: LoginRoute,
   AccessTokenRoute: AccessTokenRoute,
   OfferTokenRoute: OfferTokenRoute,
   RescheduleTokenRoute: RescheduleTokenRoute,
