@@ -10,33 +10,102 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BookRouteImport } from './routes/book'
+import { Route as EmergencyRouteImport } from './routes/emergency'
+import { Route as AccessTokenRouteImport } from './routes/access.$token'
+import { Route as OfferTokenRouteImport } from './routes/offer.$token'
+import { Route as RescheduleTokenRouteImport } from './routes/reschedule.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookRoute = BookRouteImport.update({
+  id: '/book',
+  path: '/book',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmergencyRoute = EmergencyRouteImport.update({
+  id: '/emergency',
+  path: '/emergency',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccessTokenRoute = AccessTokenRouteImport.update({
+  id: '/access/$token',
+  path: '/access/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfferTokenRoute = OfferTokenRouteImport.update({
+  id: '/offer/$token',
+  path: '/offer/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RescheduleTokenRoute = RescheduleTokenRouteImport.update({
+  id: '/reschedule/$token',
+  path: '/reschedule/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/book': typeof BookRoute
+  '/emergency': typeof EmergencyRoute
+  '/access/$token': typeof AccessTokenRoute
+  '/offer/$token': typeof OfferTokenRoute
+  '/reschedule/$token': typeof RescheduleTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/book': typeof BookRoute
+  '/emergency': typeof EmergencyRoute
+  '/access/$token': typeof AccessTokenRoute
+  '/offer/$token': typeof OfferTokenRoute
+  '/reschedule/$token': typeof RescheduleTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/book': typeof BookRoute
+  '/emergency': typeof EmergencyRoute
+  '/access/$token': typeof AccessTokenRoute
+  '/offer/$token': typeof OfferTokenRoute
+  '/reschedule/$token': typeof RescheduleTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/book'
+    | '/emergency'
+    | '/access/$token'
+    | '/offer/$token'
+    | '/reschedule/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/book'
+    | '/emergency'
+    | '/access/$token'
+    | '/offer/$token'
+    | '/reschedule/$token'
+  id:
+    | '__root__'
+    | '/'
+    | '/book'
+    | '/emergency'
+    | '/access/$token'
+    | '/offer/$token'
+    | '/reschedule/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BookRoute: typeof BookRoute
+  EmergencyRoute: typeof EmergencyRoute
+  AccessTokenRoute: typeof AccessTokenRoute
+  OfferTokenRoute: typeof OfferTokenRoute
+  RescheduleTokenRoute: typeof RescheduleTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +117,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/book': {
+      id: '/book'
+      path: '/book'
+      fullPath: '/book'
+      preLoaderRoute: typeof BookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/emergency': {
+      id: '/emergency'
+      path: '/emergency'
+      fullPath: '/emergency'
+      preLoaderRoute: typeof EmergencyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/access/$token': {
+      id: '/access/$token'
+      path: '/access/$token'
+      fullPath: '/access/$token'
+      preLoaderRoute: typeof AccessTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offer/$token': {
+      id: '/offer/$token'
+      path: '/offer/$token'
+      fullPath: '/offer/$token'
+      preLoaderRoute: typeof OfferTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reschedule/$token': {
+      id: '/reschedule/$token'
+      path: '/reschedule/$token'
+      fullPath: '/reschedule/$token'
+      preLoaderRoute: typeof RescheduleTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BookRoute: BookRoute,
+  EmergencyRoute: EmergencyRoute,
+  AccessTokenRoute: AccessTokenRoute,
+  OfferTokenRoute: OfferTokenRoute,
+  RescheduleTokenRoute: RescheduleTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
