@@ -21,6 +21,8 @@ import { Route as DashboardInboxRouteImport } from './routes/dashboard.inbox'
 import { Route as DashboardJobsRouteImport } from './routes/dashboard.jobs'
 import { Route as DashboardLeadsRouteImport } from './routes/dashboard.leads'
 import { Route as DashboardProjectsRouteImport } from './routes/dashboard.projects'
+import { Route as DashboardRotRouteImport } from './routes/dashboard.rot'
+import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
 import { Route as DashboardWaitlistRouteImport } from './routes/dashboard.waitlist'
 import { Route as OfferTokenRouteImport } from './routes/offer.$token'
 import { Route as RescheduleTokenRouteImport } from './routes/reschedule.$token'
@@ -86,6 +88,16 @@ const DashboardProjectsRoute = DashboardProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardRotRoute = DashboardRotRouteImport.update({
+  id: '/rot',
+  path: '/rot',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardWaitlistRoute = DashboardWaitlistRouteImport.update({
   id: '/waitlist',
   path: '/waitlist',
@@ -119,6 +131,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/jobs': typeof DashboardJobsRouteWithChildren
   '/dashboard/leads': typeof DashboardLeadsRoute
   '/dashboard/projects': typeof DashboardProjectsRoute
+  '/dashboard/rot': typeof DashboardRotRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/waitlist': typeof DashboardWaitlistRoute
   '/offer/$token': typeof OfferTokenRoute
   '/reschedule/$token': typeof RescheduleTokenRoute
@@ -136,6 +150,8 @@ export interface FileRoutesByTo {
   '/dashboard/jobs': typeof DashboardJobsRouteWithChildren
   '/dashboard/leads': typeof DashboardLeadsRoute
   '/dashboard/projects': typeof DashboardProjectsRoute
+  '/dashboard/rot': typeof DashboardRotRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/waitlist': typeof DashboardWaitlistRoute
   '/offer/$token': typeof OfferTokenRoute
   '/reschedule/$token': typeof RescheduleTokenRoute
@@ -155,6 +171,8 @@ export interface FileRoutesById {
   '/dashboard/jobs': typeof DashboardJobsRouteWithChildren
   '/dashboard/leads': typeof DashboardLeadsRoute
   '/dashboard/projects': typeof DashboardProjectsRoute
+  '/dashboard/rot': typeof DashboardRotRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/waitlist': typeof DashboardWaitlistRoute
   '/offer/$token': typeof OfferTokenRoute
   '/reschedule/$token': typeof RescheduleTokenRoute
@@ -175,6 +193,8 @@ export interface FileRouteTypes {
     | '/dashboard/jobs'
     | '/dashboard/leads'
     | '/dashboard/projects'
+    | '/dashboard/rot'
+    | '/dashboard/settings'
     | '/dashboard/waitlist'
     | '/offer/$token'
     | '/reschedule/$token'
@@ -192,6 +212,8 @@ export interface FileRouteTypes {
     | '/dashboard/jobs'
     | '/dashboard/leads'
     | '/dashboard/projects'
+    | '/dashboard/rot'
+    | '/dashboard/settings'
     | '/dashboard/waitlist'
     | '/offer/$token'
     | '/reschedule/$token'
@@ -210,6 +232,8 @@ export interface FileRouteTypes {
     | '/dashboard/jobs'
     | '/dashboard/leads'
     | '/dashboard/projects'
+    | '/dashboard/rot'
+    | '/dashboard/settings'
     | '/dashboard/waitlist'
     | '/offer/$token'
     | '/reschedule/$token'
@@ -314,6 +338,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardProjectsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/rot': {
+      id: '/dashboard/rot'
+      path: '/rot'
+      fullPath: '/dashboard/rot'
+      preLoaderRoute: typeof DashboardRotRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/settings': {
+      id: '/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/waitlist': {
       id: '/dashboard/waitlist'
       path: '/waitlist'
@@ -363,6 +401,8 @@ interface DashboardRouteChildren {
   DashboardJobsRoute: typeof DashboardJobsRouteWithChildren
   DashboardLeadsRoute: typeof DashboardLeadsRoute
   DashboardProjectsRoute: typeof DashboardProjectsRoute
+  DashboardRotRoute: typeof DashboardRotRoute
+  DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardWaitlistRoute: typeof DashboardWaitlistRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
@@ -373,6 +413,8 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardJobsRoute: DashboardJobsRouteWithChildren,
   DashboardLeadsRoute: DashboardLeadsRoute,
   DashboardProjectsRoute: DashboardProjectsRoute,
+  DashboardRotRoute: DashboardRotRoute,
+  DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardWaitlistRoute: DashboardWaitlistRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
