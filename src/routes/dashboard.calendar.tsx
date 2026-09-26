@@ -1,4 +1,47 @@
-import { createFileRoute } from "@tanstack/react-router"; import { useState } from "react"; import { PageHeader, StatusBadge } from "@/components/vvs/primitives"; import { Button } from "@/components/ui/button"; import { Card } from "@/components/ui/card"; import { cn } from "@/lib/utils";
-export const Route=createFileRoute("/dashboard/calendar")({head:()=>({meta:[{title:"Calendar — VVS Flow"},{name:"description",content:"Day and week plumbing schedule with route buffers."},{property:"og:title",content:"Calendar — VVS Flow"},{property:"og:description",content:"Plan appointments, capacity, and travel time."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:Calendar});
-const events=[{day:0,start:1,span:2,title:"Kitchen leak",person:"Anna · 723",tone:"bg-accent"},{day:0,start:4,span:2,title:"Faucet repair",person:"Erik · 724",tone:"bg-success/12"},{day:0,start:6,span:1,title:"Travel · 25 min",person:"Haga route",tone:"bg-muted"},{day:0,start:7,span:2,title:"Boiler service",person:"Sara · 726",tone:"bg-warning/20"},{day:1,start:2,span:2,title:"Radiator valve",person:"Linn · 722",tone:"bg-accent"},{day:2,start:4,span:3,title:"Bathroom survey",person:"Åberg · 725",tone:"bg-secondary"}];
-function Calendar(){const[view,setView]=useState("Week");return <div className="space-y-6"><PageHeader title="Calendar" description="Work, travel, and protected capacity in one operational view." action={<div className="flex rounded-md border bg-background p-1">{["Day","Week"].map(v=><Button key={v} size="sm" variant={view===v?"default":"ghost"} onClick={()=>setView(v)}>{v}</Button>)}</div>}/><Card className="overflow-x-auto rounded-md shadow-none"><div className="min-w-[760px] p-5"><div className="grid grid-cols-[70px_repeat(5,1fr)] border-b pb-3 text-center text-xs font-bold text-muted-foreground"><span/><span>Fri 25</span><span>Mon 28</span><span>Tue 29</span><span>Wed 30</span><span>Thu 1</span></div><div className="relative grid grid-cols-[70px_repeat(5,1fr)]">{["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00"].map(t=><div key={t} className="contents"><div className="h-16 border-b py-2 text-xs text-muted-foreground">{t}</div>{[0,1,2,3,4].map(d=><div key={d} className="h-16 border-b border-l"/>)}</div>)}{events.map((e,i)=><div key={i} className={cn("absolute rounded-sm border-l-4 border-primary p-2 text-xs",e.tone)} style={{left:`calc(70px + (100% - 70px) / 5 * ${e.day})`,top:`${e.start*64+4}px`,width:"calc((100% - 70px) / 5 - 6px)",height:`${e.span*64-8}px`}}><p className="font-bold">{e.title}</p><p className="mt-1 text-muted-foreground">{e.person}</p></div>)}</div><div className="mt-4 flex gap-4"><StatusBadge tone="info">Service</StatusBadge><StatusBadge>Travel buffer</StatusBadge><StatusBadge tone="warning">Needs access</StatusBadge></div></div></Card></div>}
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { PageHeader, StatusBadge } from "@/components/vvs/primitives";
+import { QueryState } from "@/components/vvs/query-state";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { jobService } from "@/lib/services";
+import { fmtShortDay, fmtTime, sameStockholmDay, stockholmParts } from "@/lib/time";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/dashboard/calendar")({
+  head: () => ({ meta: [{ title: "Calendar — VVS Flow" }, { name: "description", content: "Day and week plumbing schedule with route buffers." }, { property: "og:title", content: "Calendar — VVS Flow" }, { property: "og:description", content: "Plan appointments, capacity, and travel time." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
+  component: Calendar,
+});
+
+const START = 7, END = 18, ROW = 56;
+const tone = (s: string) => s === "cancelled" ? "bg-destructive/8 border-destructive line-through" : s === "access_confirmed" || s === "in_progress" ? "bg-success/12 border-success" : s === "confirmed" ? "bg-warning/15 border-warning" : "bg-accent border-primary";
+
+function Calendar() {
+  const [view, setView] = useState<"Day" | "Week">("Week");
+  const [offset, setOffset] = useState(0);
+  const cal = useServerFn(jobService.calendar);
+  const q = useQuery({ queryKey: ["calendar", offset], queryFn: () => cal({ data: { offsetDays: offset } }) });
+  return <div className="space-y-6"><PageHeader title="Calendar" description="Work, travel, and protected capacity in one operational view." action={<div className="flex items-center gap-2"><Button size="icon" variant="outline" aria-label="Previous" onClick={() => setOffset(o => o - (view === "Week" ? 7 : 1))}><ChevronLeft/></Button><Button size="sm" variant="outline" onClick={() => setOffset(0)}>Today</Button><Button size="icon" variant="outline" aria-label="Next" onClick={() => setOffset(o => o + (view === "Week" ? 7 : 1))}><ChevronRight/></Button><div className="flex rounded-md border bg-background p-1">{(["Day", "Week"] as const).map(v => <Button key={v} size="sm" variant={view === v ? "default" : "ghost"} onClick={() => setView(v)}>{v}</Button>)}</div></div>}/>
+    <QueryState q={q}>{(d) => {
+      const days = Array.from({ length: view === "Week" ? 7 : 1 }, (_, i) => new Date(new Date(d.from).getTime() + i * 86400000 + 3600000 * 12));
+      const now = new Date(d.now);
+      const nowP = stockholmParts(now);
+      return <Card className="overflow-x-auto rounded-md shadow-none"><div className={cn("p-5", view === "Week" && "min-w-[900px]")}><div className="grid border-b pb-3 text-center text-xs font-bold text-muted-foreground" style={{ gridTemplateColumns: `60px repeat(${days.length},1fr)` }}><span/>{days.map(day => <span key={day.toISOString()} className={sameStockholmDay(day, now) ? "text-primary" : ""}>{fmtShortDay(day)}</span>)}</div>
+        <div className="relative grid" style={{ gridTemplateColumns: `60px repeat(${days.length},1fr)` }}>{Array.from({ length: END - START }, (_, h) => <div key={h} className="contents"><div className="border-b py-1 text-xs text-muted-foreground" style={{ height: ROW }}>{String(START + h).padStart(2, "0")}:00</div>{days.map((_, i) => <div key={i} className="border-b border-l" style={{ height: ROW }}/>)}</div>)}
+          {days.map((day, di) => d.jobs.filter(j => sameStockholmDay(new Date(j.scheduled_at!), day)).sort((a, b) => a.scheduled_at!.localeCompare(b.scheduled_at!)).flatMap((j, idx, arr) => {
+            const p = stockholmParts(new Date(j.scheduled_at!)); const top = ((p.h - START) * 60 + p.mi) / 60 * ROW; const h = j.duration_min / 60 * ROW;
+            const col = { left: `calc(60px + (100% - 60px) / ${days.length} * ${di} + 3px)`, width: `calc((100% - 60px) / ${days.length} - 6px)` };
+            const out = [<Link key={j.id} to="/dashboard/jobs/$jobId" params={{ jobId: j.id }} className={cn("absolute overflow-hidden rounded-sm border-l-4 p-2 text-xs hover:z-10 hover:shadow", tone(j.status))} style={{ ...col, top: top + 2, height: Math.max(24, h - 4) }}><p className="truncate font-bold">{fmtTime(j.scheduled_at!)} {j.title}</p><p className="truncate text-muted-foreground">{j.customer_name} · {j.zone}</p></Link>];
+            const next = arr[idx + 1];
+            if (next && next.zone !== j.zone && j.status !== "cancelled") out.push(<div key={j.id + "t"} className="absolute rounded-sm bg-muted px-2 text-[10px] leading-5 text-muted-foreground" style={{ ...col, top: top + h, height: 20 / 60 * ROW }}>Travel · 20 min</div>);
+            return out;
+          }))}
+          {days.some(day => sameStockholmDay(day, now)) && nowP.h >= START && nowP.h < END && <div aria-label="Current time" className="pointer-events-none absolute h-0.5 bg-destructive" style={{ top: ((nowP.h - START) * 60 + nowP.mi) / 60 * ROW, left: view === "Week" ? `calc(60px + (100% - 60px) / 7 * ${days.findIndex(x => sameStockholmDay(x, now))})` : 60, width: view === "Week" ? "calc((100% - 60px) / 7)" : "calc(100% - 60px)" }}><span className="absolute -left-1 -top-1 size-2.5 rounded-full bg-destructive"/></div>}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3"><StatusBadge tone="warning">Confirmed · needs access</StatusBadge><StatusBadge tone="success">Access confirmed</StatusBadge><StatusBadge tone="info">Other</StatusBadge><StatusBadge>Travel buffer</StatusBadge><StatusBadge tone="danger">Cancelled · recoverable</StatusBadge></div>
+        {d.jobs.length === 0 && <p className="mt-4 text-sm text-muted-foreground">No appointments in this period.</p>}</div></Card>;
+    }}</QueryState></div>;
+}

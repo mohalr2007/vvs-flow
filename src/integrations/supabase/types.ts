@@ -14,16 +14,386 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      inbox_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          result: Json | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          result?: Json | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          result?: Json | null
+        }
+        Relationships: []
+      }
+      jobs: {
+        Row: {
+          access_status: string | null
+          access_token: string
+          address: string
+          confidence: number
+          created_at: string
+          customer_name: string
+          description: string
+          duration_min: number
+          id: string
+          is_emergency: boolean
+          missing_fields: string[]
+          phone: string
+          photo_path: string | null
+          ref: string
+          scheduled_at: string | null
+          site_visit: boolean
+          status: Database["public"]["Enums"]["job_status"]
+          title: string
+          urgency: string
+          value: number
+          zone: string
+        }
+        Insert: {
+          access_status?: string | null
+          access_token?: string
+          address?: string
+          confidence?: number
+          created_at?: string
+          customer_name: string
+          description?: string
+          duration_min?: number
+          id?: string
+          is_emergency?: boolean
+          missing_fields?: string[]
+          phone?: string
+          photo_path?: string | null
+          ref?: string
+          scheduled_at?: string | null
+          site_visit?: boolean
+          status?: Database["public"]["Enums"]["job_status"]
+          title: string
+          urgency?: string
+          value?: number
+          zone?: string
+        }
+        Update: {
+          access_status?: string | null
+          access_token?: string
+          address?: string
+          confidence?: number
+          created_at?: string
+          customer_name?: string
+          description?: string
+          duration_min?: number
+          id?: string
+          is_emergency?: boolean
+          missing_fields?: string[]
+          phone?: string
+          photo_path?: string | null
+          ref?: string
+          scheduled_at?: string | null
+          site_visit?: boolean
+          status?: Database["public"]["Enums"]["job_status"]
+          title?: string
+          urgency?: string
+          value?: number
+          zone?: string
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          stage: string
+          value: number
+          work: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          stage?: string
+          value?: number
+          work: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          stage?: string
+          value?: number
+          work?: string
+        }
+        Relationships: []
+      }
+      offers: {
+        Row: {
+          breakdown: Json
+          created_at: string
+          duration_min: number
+          expires_at: string
+          id: string
+          score: number
+          slot_start: string
+          source_job_id: string | null
+          status: string
+          token: string
+          waitlist_id: string
+        }
+        Insert: {
+          breakdown?: Json
+          created_at?: string
+          duration_min: number
+          expires_at: string
+          id?: string
+          score?: number
+          slot_start: string
+          source_job_id?: string | null
+          status?: string
+          token?: string
+          waitlist_id: string
+        }
+        Update: {
+          breakdown?: Json
+          created_at?: string
+          duration_min?: number
+          expires_at?: string
+          id?: string
+          score?: number
+          slot_start?: string
+          source_job_id?: string | null
+          status?: string
+          token?: string
+          waitlist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_source_job_id_fkey"
+            columns: ["source_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_waitlist_id_fkey"
+            columns: ["waitlist_id"]
+            isOneToOne: false
+            referencedRelation: "waitlist_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          address: string
+          budget: string
+          created_at: string
+          customer_name: string
+          description: string
+          id: string
+          phone: string
+          ref: string
+          status: Database["public"]["Enums"]["project_status"]
+          title: string
+        }
+        Insert: {
+          address?: string
+          budget?: string
+          created_at?: string
+          customer_name: string
+          description?: string
+          id?: string
+          phone?: string
+          ref?: string
+          status?: Database["public"]["Enums"]["project_status"]
+          title: string
+        }
+        Update: {
+          address?: string
+          budget?: string
+          created_at?: string
+          customer_name?: string
+          description?: string
+          id?: string
+          phone?: string
+          ref?: string
+          status?: Database["public"]["Enums"]["project_status"]
+          title?: string
+        }
+        Relationships: []
+      }
+      rot_records: {
+        Row: {
+          created_at: string
+          customer: string
+          id: string
+          labor: number
+          materials: number
+          status: string
+          work: string
+        }
+        Insert: {
+          created_at?: string
+          customer: string
+          id?: string
+          labor?: number
+          materials?: number
+          status?: string
+          work: string
+        }
+        Update: {
+          created_at?: string
+          customer?: string
+          id?: string
+          labor?: number
+          materials?: number
+          status?: string
+          work?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          business_name: string
+          clock_offset_minutes: number
+          emergency_buffer_min: number
+          hourly_rate: number
+          id: number
+          owner_name: string
+          service_area: string
+          work_end_hour: number
+          work_start_hour: number
+        }
+        Insert: {
+          business_name?: string
+          clock_offset_minutes?: number
+          emergency_buffer_min?: number
+          hourly_rate?: number
+          id?: number
+          owner_name?: string
+          service_area?: string
+          work_end_hour?: number
+          work_start_hour?: number
+        }
+        Update: {
+          business_name?: string
+          clock_offset_minutes?: number
+          emergency_buffer_min?: number
+          hourly_rate?: number
+          id?: number
+          owner_name?: string
+          service_area?: string
+          work_end_hour?: number
+          work_start_hour?: number
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      waitlist_entries: {
+        Row: {
+          created_at: string
+          customer_name: string
+          duration_min: number
+          flexibility: string
+          id: string
+          phone: string
+          status: string
+          title: string
+          urgency: string
+          value: number
+          zone: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name: string
+          duration_min?: number
+          flexibility?: string
+          id?: string
+          phone?: string
+          status?: string
+          title: string
+          urgency?: string
+          value?: number
+          zone: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          duration_min?: number
+          flexibility?: string
+          id?: string
+          phone?: string
+          status?: string
+          title?: string
+          urgency?: string
+          value?: number
+          zone?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      _seed_demo: { Args: never; Returns: undefined }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      reset_demo: { Args: never; Returns: undefined }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "owner"
+      job_status:
+        | "new"
+        | "qualified"
+        | "held"
+        | "confirmed"
+        | "access_confirmed"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+        | "expired"
+        | "waitlisted"
+        | "needs_assessment"
+      project_status:
+        | "project_request"
+        | "site_visit_requested"
+        | "site_visit_scheduled"
+        | "owner_review"
+        | "project_approved"
+        | "scheduled"
+        | "in_progress"
+        | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +520,31 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["owner"],
+      job_status: [
+        "new",
+        "qualified",
+        "held",
+        "confirmed",
+        "access_confirmed",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "expired",
+        "waitlisted",
+        "needs_assessment",
+      ],
+      project_status: [
+        "project_request",
+        "site_visit_requested",
+        "site_visit_scheduled",
+        "owner_review",
+        "project_approved",
+        "scheduled",
+        "in_progress",
+        "completed",
+      ],
+    },
   },
 } as const
