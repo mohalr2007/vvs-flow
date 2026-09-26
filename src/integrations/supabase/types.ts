@@ -193,10 +193,12 @@ export type Database = {
       }
       project_tasks: {
         Row: {
+          checklist: Json
           created_at: string
           done: boolean
           end_hour: number
           id: string
+          is_extension: boolean
           notes: string
           project_id: string
           start_hour: number
@@ -204,10 +206,12 @@ export type Database = {
           work_date: string
         }
         Insert: {
+          checklist?: Json
           created_at?: string
           done?: boolean
           end_hour?: number
           id?: string
+          is_extension?: boolean
           notes?: string
           project_id: string
           start_hour?: number
@@ -215,10 +219,12 @@ export type Database = {
           work_date: string
         }
         Update: {
+          checklist?: Json
           created_at?: string
           done?: boolean
           end_hour?: number
           id?: string
+          is_extension?: boolean
           notes?: string
           project_id?: string
           start_hour?: number
@@ -244,9 +250,13 @@ export type Database = {
           description: string
           id: string
           phone: string
+          planned_days: number
+          quote: Json
           ref: string
+          start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
           title: string
+          worked_rest_dates: string[]
         }
         Insert: {
           address?: string
@@ -256,9 +266,13 @@ export type Database = {
           description?: string
           id?: string
           phone?: string
+          planned_days?: number
+          quote?: Json
           ref?: string
+          start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           title: string
+          worked_rest_dates?: string[]
         }
         Update: {
           address?: string
@@ -268,9 +282,13 @@ export type Database = {
           description?: string
           id?: string
           phone?: string
+          planned_days?: number
+          quote?: Json
           ref?: string
+          start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           title?: string
+          worked_rest_dates?: string[]
         }
         Relationships: []
       }
@@ -312,6 +330,7 @@ export type Database = {
           hourly_rate: number
           id: number
           owner_name: string
+          rest_days: number[]
           service_area: string
           work_end_hour: number
           work_start_hour: number
@@ -323,6 +342,7 @@ export type Database = {
           hourly_rate?: number
           id?: number
           owner_name?: string
+          rest_days?: number[]
           service_area?: string
           work_end_hour?: number
           work_start_hour?: number
@@ -334,6 +354,7 @@ export type Database = {
           hourly_rate?: number
           id?: number
           owner_name?: string
+          rest_days?: number[]
           service_area?: string
           work_end_hour?: number
           work_start_hour?: number
