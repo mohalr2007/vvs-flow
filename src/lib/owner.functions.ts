@@ -120,7 +120,7 @@ export const approveJob = createServerFn({ method: "POST" }).middleware([require
   const { error } = await db.from("jobs").update({ ...data.fields, status: "qualified", missing_fields: [] }).eq("id", data.id);
   if (error) throw new Error("Approval could not be saved.");
   const { data: jobs } = await db.from("jobs").select("scheduled_at,duration_min,zone,status").not("scheduled_at", "is", null);
-  return { groups: findSlots({ jobs: jobs ?? [], now, duration: data.fields.duration_min, zone: data.fields.zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour }) };
+  return { groups: findSlots({ jobs: jobs ?? [], now, duration: data.fields.duration_min, zone: data.fields.zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour, restDays: settings.rest_days }) };
 });
 
 export const scheduleJob = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ slotStart: z.string().datetime() }).parse(d)).handler(async ({ context, data }) => {
