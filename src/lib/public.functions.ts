@@ -54,7 +54,7 @@ export const createPhotoUpload = createServerFn({ method: "POST" })
 
 const bookingSchema = z.object({
   kind: z.enum(["repair", "project", "emergency"]),
-  name: text(120), phone: text(40), address: text(200), description: text(1500),
+  name: text(120), phone: text(40), email: z.string().trim().email().max(160).or(z.literal("")), address: text(200), description: text(1500),
   title: z.string().max(120).nullable(), urgency: z.enum(["Low", "Normal", "High", "Emergency"]).nullable(),
   duration_min: z.number().int().min(15).max(480).nullable(), price_high: z.number().min(0).max(1000000).nullable(),
   confidence: z.number().min(0).max(100).nullable(), missing_fields: z.array(z.string().max(80)).max(5).nullable(),

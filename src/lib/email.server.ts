@@ -3,6 +3,10 @@
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 const FROM = "Ekström VVS <onboarding@resend.dev>";
+// Public base URL used in email links (booking/offer pages).
+const APP_URL = "https://id-preview--b9506bcd-256a-4188-834f-9981db88d72f.lovable.app";
+export const bookingUrl = (token: string) => `${APP_URL}/access/${token}`;
+export const offerUrl = (token: string) => `${APP_URL}/offer/${token}`;
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<{ sent: boolean; reason?: string }> {
   const lovableKey = process.env["LOVABLE_API_KEY"];
