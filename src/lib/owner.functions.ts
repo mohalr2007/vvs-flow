@@ -43,6 +43,23 @@ export const claimOwnership = owner().handler(async ({ context }) => {
   return { ok: true };
 });
 
+// DEV ONLY — one-click demo login. Remove before launch (see roadmap).
+const DEMO_EMAIL = "mats.demo@vvsflow.local";
+const DEMO_PASSWORD = "vvsflow-demo-2026";
+export const demoOwnerLogin = createServerFn({ method: "POST" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  let user = list?.users.find((u) => u.email === DEMO_EMAIL);
+  if (!user) {
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({ email: DEMO_EMAIL, password: DEMO_PASSWORD, email_confirm: true });
+    if (error || !data.user) throw new Error("Could not create the demo account.");
+    user = data.user;
+  }
+  const { data: role } = await supabaseAdmin.from("user_roles").select("id").eq("user_id", user.id).eq("role", "owner").maybeSingle();
+  if (!role) await supabaseAdmin.from("user_roles").insert({ user_id: user.id, role: "owner" });
+  return { email: DEMO_EMAIL, password: DEMO_PASSWORD };
+});
+
 export const getOverview = owner().handler(async ({ context }) => {
   const { db, now, settings } = await guard(context);
   await expireOffers(db, now);
