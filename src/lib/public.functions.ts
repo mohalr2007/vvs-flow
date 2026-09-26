@@ -11,14 +11,14 @@ async function admin() {
 async function context() {
   const db = await admin();
   const { data: s } = await db.from("settings").select("*").eq("id", 1).single();
-  const settings = s ?? { work_start_hour: 8, work_end_hour: 17, clock_offset_minutes: 0, business_name: "Ekström VVS" };
+  const settings = s ?? { work_start_hour: 8, work_end_hour: 17, clock_offset_minutes: 0, business_name: "Ekström VVS", rest_days: [0, 6] };
   const now = new Date(Date.now() + settings.clock_offset_minutes * 60000);
   return { db, settings, now };
 }
 async function slotsFor(duration: number, zone: string, excludeJobId?: string) {
   const { db, settings, now } = await context();
   const { data: jobs } = await db.from("jobs").select("id,scheduled_at,duration_min,zone,status").not("scheduled_at", "is", null);
-  return findSlots({ jobs: (jobs ?? []).filter((j) => j.id !== excludeJobId), now, duration, zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour });
+  return findSlots({ jobs: (jobs ?? []).filter((j) => j.id !== excludeJobId), now, duration, zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour, restDays: settings.rest_days });
 }
 async function expireOffers(db: Awaited<ReturnType<typeof admin>>, now: Date) {
   const { data } = await db.from("offers").select("id,waitlist_id").eq("status", "pending").lt("expires_at", now.toISOString());

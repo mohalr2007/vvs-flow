@@ -15,6 +15,13 @@
       "when": 1790428295693,
       "tag": "0001_project_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790429230236,
+      "tag": "0002_project_site_planning_and_quotes",
+      "breakpoints": true
     }
   ]
 }

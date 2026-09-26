@@ -120,7 +120,7 @@ export const approveJob = createServerFn({ method: "POST" }).middleware([require
   const { error } = await db.from("jobs").update({ ...data.fields, status: "qualified", missing_fields: [] }).eq("id", data.id);
   if (error) throw new Error("Approval could not be saved.");
   const { data: jobs } = await db.from("jobs").select("scheduled_at,duration_min,zone,status").not("scheduled_at", "is", null);
-  return { groups: findSlots({ jobs: jobs ?? [], now, duration: data.fields.duration_min, zone: data.fields.zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour }) };
+  return { groups: findSlots({ jobs: jobs ?? [], now, duration: data.fields.duration_min, zone: data.fields.zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour, restDays: settings.rest_days }) };
 });
 
 export const scheduleJob = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ slotStart: z.string().datetime() }).parse(d)).handler(async ({ context, data }) => {
@@ -141,12 +141,12 @@ export const setJobStatus = createServerFn({ method: "POST" }).middleware([requi
 });
 
 export const getCalendar = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ offsetDays: z.number().int().min(-60).max(60) }).parse(d)).handler(async ({ context, data }) => {
-  const { db, now } = await guard(context);
+  const { db, now, settings } = await guard(context);
   const from = startOfStockholmDay(now, data.offsetDays), to = startOfStockholmDay(now, data.offsetDays + 7);
   const { data: jobs } = await db.from("jobs").select("id,title,customer_name,zone,status,scheduled_at,duration_min").gte("scheduled_at", from.toISOString()).lt("scheduled_at", to.toISOString()).neq("status", "expired");
   const fromD = new Date(from.getTime() + 12 * 3600000).toISOString().slice(0, 10), toD = new Date(to.getTime() + 12 * 3600000).toISOString().slice(0, 10);
   const { data: tasks } = await db.from("project_tasks").select("id,title,work_date,start_hour,end_hour,done,project_id,projects(customer_name,ref)").gte("work_date", fromD).lt("work_date", toD);
-  return { from: from.toISOString(), now: now.toISOString(), jobs: jobs ?? [], tasks: tasks ?? [] };
+  return { from: from.toISOString(), now: now.toISOString(), jobs: jobs ?? [], tasks: tasks ?? [], restDays: settings.rest_days, workStart: settings.work_start_hour, workEnd: settings.work_end_hour };
 });
 
 export const getWaitlist = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
@@ -209,31 +209,98 @@ export const advanceProject = createServerFn({ method: "POST" }).middleware([req
 });
 
 export const getProject = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.parse(d)).handler(async ({ context, data }) => {
-  const { db } = await guard(context);
+  const { db, settings } = await guard(context);
   const { data: project } = await db.from("projects").select("*").eq("id", data.id).single();
   if (!project) throw new Error("Project not found.");
-  const { data: tasks } = await db.from("project_tasks").select("*").eq("project_id", data.id).order("work_date").order("start_hour");
-  return { project, tasks: tasks ?? [] };
+  const { data: tasks } = await db.from("project_tasks").select("*").eq("project_id", data.id).order("work_date").order("created_at");
+  return { project, tasks: tasks ?? [], restDays: settings.rest_days, workStart: settings.work_start_hour, workEnd: settings.work_end_hour };
 });
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-export const addProjectDays = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ projectId: z.string().uuid(), title: z.string().trim().min(1).max(120), startDate: dateStr, days: z.number().int().min(1).max(90), skipWeekends: z.boolean(), startHour: z.number().int().min(0).max(23), endHour: z.number().int().min(1).max(24), notes: z.string().max(1000) }).refine((v) => v.endHour > v.startHour, "End must be after start").parse(d)).handler(async ({ context, data }) => {
-  const { db } = await guard(context);
-  const rows: { project_id: string; title: string; work_date: string; start_hour: number; end_hour: number; notes: string }[] = [];
-  const cur = new Date(data.startDate + "T12:00:00Z");
-  while (rows.length < data.days) {
-    const wd = cur.getUTCDay();
-    if (!data.skipWeekends || (wd !== 0 && wd !== 6)) rows.push({ project_id: data.projectId, title: data.days > 1 ? `${data.title} · day ${rows.length + 1}/${data.days}` : data.title, work_date: cur.toISOString().slice(0, 10), start_hour: data.startHour, end_hour: data.endHour, notes: data.notes });
-    cur.setUTCDate(cur.getUTCDate() + 1);
+const addDay = (s: string, n: number) => { const d = new Date(s + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const dow = (s: string) => new Date(s + "T12:00:00Z").getUTCDay();
+/** Re-lays out every working day of a project sequentially from its start date, skipping the owner's rest days unless worked on purpose. */
+async function relayout(db: Ctx["supabase"], projectId: string, restDays: number[]) {
+  const { data: p } = await db.from("projects").select("start_date,worked_rest_dates").eq("id", projectId).single();
+  if (!p?.start_date) return;
+  const { data: tasks } = await db.from("project_tasks").select("id,work_date,is_extension,created_at").eq("project_id", projectId);
+  const ordered = (tasks ?? []).sort((a, b) => Number(a.is_extension) - Number(b.is_extension) || a.work_date.localeCompare(b.work_date) || a.created_at.localeCompare(b.created_at));
+  let cur = p.start_date, guardN = 0;
+  for (const t of ordered) {
+    while (restDays.includes(dow(cur)) && !p.worked_rest_dates.includes(cur) && guardN++ < 400) cur = addDay(cur, 1);
+    if (t.work_date !== cur) await db.from("project_tasks").update({ work_date: cur }).eq("id", t.id);
+    cur = addDay(cur, 1);
   }
+}
+export const planProject = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ projectId: z.string().uuid(), startDate: dateStr, days: z.number().int().min(1).max(120), title: z.string().trim().min(1).max(120) }).parse(d)).handler(async ({ context, data }) => {
+  const { db, settings } = await guard(context);
+  const { count } = await db.from("project_tasks").select("id", { count: "exact", head: true }).eq("project_id", data.projectId);
+  if (count) throw new Error("This site is already planned. Add delay days instead, or reset the plan.");
+  await db.from("projects").update({ start_date: data.startDate, planned_days: data.days, worked_rest_dates: [] }).eq("id", data.projectId);
+  const rows = Array.from({ length: data.days }, (_, i) => ({ project_id: data.projectId, title: `${data.title} · day ${i + 1}`, work_date: addDay(data.startDate, i), start_hour: settings.work_start_hour, end_hour: settings.work_end_hour, notes: "" }));
   const { error } = await db.from("project_tasks").insert(rows);
   if (error) throw new Error(error.message);
+  await relayout(db, data.projectId, settings.rest_days);
   return { count: rows.length };
 });
-export const updateProjectTask = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ id: z.string().uuid(), done: z.boolean().optional(), remove: z.boolean().optional() }).parse(d)).handler(async ({ context, data }) => {
+export const extendProject = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ projectId: z.string().uuid(), days: z.number().int().min(1).max(5), reason: z.string().trim().max(300) }).parse(d)).handler(async ({ context, data }) => {
+  const { db, settings } = await guard(context);
+  const { data: p } = await db.from("projects").select("start_date").eq("id", data.projectId).single();
+  if (!p?.start_date) throw new Error("Plan the site first.");
+  const { count } = await db.from("project_tasks").select("id", { count: "exact", head: true }).eq("project_id", data.projectId).eq("is_extension", true);
+  const rows = Array.from({ length: data.days }, (_, i) => ({ project_id: data.projectId, title: `Delay day ${(count ?? 0) + i + 1}`, work_date: "2999-12-31", start_hour: settings.work_start_hour, end_hour: settings.work_end_hour, notes: data.reason, is_extension: true }));
+  const { error } = await db.from("project_tasks").insert(rows);
+  if (error) throw new Error(error.message);
+  await relayout(db, data.projectId, settings.rest_days);
+  return { count: rows.length };
+});
+export const toggleRestDay = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ projectId: z.string().uuid(), date: dateStr }).parse(d)).handler(async ({ context, data }) => {
+  const { db, settings } = await guard(context);
+  const { data: p } = await db.from("projects").select("worked_rest_dates").eq("id", data.projectId).single();
+  const list = p?.worked_rest_dates ?? [];
+  const next = list.includes(data.date) ? list.filter((x) => x !== data.date) : [...list, data.date];
+  await db.from("projects").update({ worked_rest_dates: next }).eq("id", data.projectId);
+  await relayout(db, data.projectId, settings.rest_days);
+  return { working: next.includes(data.date) };
+});
+export const resetProjectPlan = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
-  if (data.remove) await db.from("project_tasks").delete().eq("id", data.id);
-  else await db.from("project_tasks").update({ done: !!data.done }).eq("id", data.id);
+  await db.from("project_tasks").delete().eq("project_id", data.id);
+  await db.from("projects").update({ start_date: null, planned_days: 0, worked_rest_dates: [] }).eq("id", data.id);
   return { ok: true };
+});
+const checklist = z.array(z.object({ text: z.string().trim().min(1).max(200), done: z.boolean() })).max(50);
+export const updateProjectTask = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ id: z.string().uuid(), done: z.boolean().optional(), remove: z.boolean().optional(), title: z.string().trim().min(1).max(120).optional(), notes: z.string().max(1000).optional(), checklist: checklist.optional(), start_hour: z.number().int().min(0).max(23).optional(), end_hour: z.number().int().min(1).max(24).optional() }).parse(d)).handler(async ({ context, data }) => {
+  const { db, settings } = await guard(context);
+  const { id: taskId, remove, ...patch } = data;
+  if (remove) {
+    const { data: t } = await db.from("project_tasks").select("project_id,is_extension").eq("id", taskId).single();
+    if (!t?.is_extension) throw new Error("Only delay days can be removed. Reset the plan to change the length.");
+    await db.from("project_tasks").delete().eq("id", taskId);
+    await relayout(db, t.project_id, settings.rest_days);
+    return { ok: true };
+  }
+  if (patch.start_hour !== undefined && patch.end_hour !== undefined && patch.end_hour <= patch.start_hour) throw new Error("End must be after start.");
+  const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as import("@/integrations/supabase/types").TablesUpdate<"project_tasks">;
+  const { error } = await db.from("project_tasks").update(clean).eq("id", taskId);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+});
+const quote = z.object({
+  materials: z.array(z.object({ name: z.string().trim().min(1).max(120), qty: z.number().min(0).max(100000), unit_price: z.number().min(0).max(10000000) })).max(100),
+  labor: z.number().min(0).max(100000000),
+  deposit: z.number().min(0).max(100000000),
+  installments: z.array(z.object({ label: z.string().trim().min(1).max(80), amount: z.number().min(0).max(100000000), due: z.string().max(10), paid: z.boolean() })).max(24),
+  notes: z.string().max(3000),
+  valid_until: z.string().max(10),
+  status: z.enum(["draft", "sent", "accepted", "declined"]),
+});
+export type Quote = z.infer<typeof quote>;
+export const saveProjectQuote = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ projectId: z.string().uuid(), quote }).parse(d)).handler(async ({ context, data }) => {
+  const { db } = await guard(context);
+  const total = data.quote.materials.reduce((s, m) => s + m.qty * m.unit_price, 0) + data.quote.labor;
+  const { error } = await db.from("projects").update({ quote: data.quote, budget: `${Math.round(total).toLocaleString("sv-SE")} SEK` }).eq("id", data.projectId);
+  if (error) throw new Error(error.message);
+  return { total };
 });
 export const setProjectStatus = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ id: z.string().uuid(), status: z.enum(PROJECT_FLOW) }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
@@ -266,7 +333,7 @@ export const setRotStatus = createServerFn({ method: "POST" }).middleware([requi
 });
 
 export const getSettings = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => (await guard(context)).settings);
-export const saveSettings = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ business_name: z.string().min(1).max(80), owner_name: z.string().min(1).max(80), service_area: z.string().max(80), emergency_buffer_min: z.number().int().min(0).max(480), work_start_hour: z.number().int().min(0).max(23), work_end_hour: z.number().int().min(1).max(24), hourly_rate: z.number().int().min(0).max(10000) }).parse(d)).handler(async ({ context, data }) => {
+export const saveSettings = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ business_name: z.string().min(1).max(80), owner_name: z.string().min(1).max(80), service_area: z.string().max(80), emergency_buffer_min: z.number().int().min(0).max(480), work_start_hour: z.number().int().min(0).max(23), work_end_hour: z.number().int().min(1).max(24), hourly_rate: z.number().int().min(0).max(10000), rest_days: z.array(z.number().int().min(0).max(6)).max(6) }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   if (data.work_end_hour <= data.work_start_hour) throw new Error("Working day must end after it starts.");
   const { error } = await db.from("settings").update(data).eq("id", 1);
