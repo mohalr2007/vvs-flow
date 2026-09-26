@@ -19,7 +19,9 @@ async function slotsFor(duration: number, zone: string, excludeJobId?: string) {
   const { db, settings, now } = await context();
   const { data: jobs, error: jobsError } = await db.from("jobs").select("id,scheduled_at,duration_min,zone,status").not("scheduled_at", "is", null);
   console.log("[slotsFor] now:", now.toISOString(), "jobs:", JSON.stringify(jobs), "error:", jobsError?.message);
-  return findSlots({ jobs: (jobs ?? []).filter((j) => j.id !== excludeJobId), now, duration, zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour, restDays: settings.rest_days });
+  const groups = findSlots({ jobs: (jobs ?? []).filter((j) => j.id !== excludeJobId), now, duration, zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour, restDays: settings.rest_days });
+  console.log("[slotsFor] groups:", JSON.stringify(groups.map((g) => ({ day: g.day, slots: g.slots.map((s) => s.start) }))));
+  return groups;
 }
 async function expireOffers(db: Awaited<ReturnType<typeof admin>>, now: Date) {
   const { data } = await db.from("offers").select("id,waitlist_id").eq("status", "pending").lt("expires_at", now.toISOString());
