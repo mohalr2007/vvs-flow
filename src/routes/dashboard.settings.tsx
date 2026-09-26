@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/vvs/primitives";
 import { QueryState, errMsg } from "@/components/vvs/query-state";
-import { DemoControls } from "./dashboard.index";
+import { DemoControls } from "@/components/vvs/demo-controls";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
