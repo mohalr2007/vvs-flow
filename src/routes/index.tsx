@@ -1,13 +1,96 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CalendarCheck, Clock3, ShieldCheck, Wrench, Droplets, Gauge, MapPin, type LucideIcon } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarCheck,
+  CheckCircle2,
+  Clock3,
+  Droplets,
+  Gauge,
+  MapPin,
+  ShieldCheck,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 import { CustomerShell } from "@/components/vvs/customer-shell";
-import { CopperVisual } from "@/components/vvs/copper-visual";
 import { Button } from "@/components/ui/button";
+import heroImage from "@/assets/ekstrom-plumber-hero.jpg";
 
 export const Route = createFileRoute("/")({
-  head:()=>({meta:[{title:"Ekström VVS — Plumbing help without the waiting"},{name:"description",content:"Book trusted plumbing service in Västerås with clear availability and fast answers."},{property:"og:title",content:"Ekström VVS — Plumbing help without the waiting"},{property:"og:description",content:"Describe what you need and find the right service and next available time."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),
+  head: () => ({
+    meta: [
+      { title: "Ekström VVS — Trusted plumbing in Västerås" },
+      { name: "description", content: "Book trusted plumbing service in Västerås with clear availability and fast answers." },
+      { property: "og:title", content: "Ekström VVS — Trusted plumbing in Västerås" },
+      { property: "og:description", content: "Describe what you need and find the right service and next available time." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Home,
 });
-const features: { icon: LucideIcon; title: string; text: string }[] = [{icon:Wrench,title:"Tell us what’s wrong",text:"Simple questions, not a technical form."},{icon:CalendarCheck,title:"Choose a clear time",text:"See realistic availability immediately."},{icon:ShieldCheck,title:"Stay informed",text:"Access, changes and confirmations in one place."}];
-function Home(){return <CustomerShell><section className="relative min-h-[calc(100svh-72px)] overflow-hidden border-b border-foreground/8"><div className="absolute inset-0 technical-grid opacity-70"/><div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent"/><div className="relative mx-auto grid min-h-[calc(100svh-72px)] max-w-[1520px] items-center px-5 py-10 lg:grid-cols-[.88fr_1.12fr] lg:px-10"><div className="relative z-10 max-w-2xl animate-in fade-in slide-in-from-bottom-3 duration-500"><p className="mb-6 inline-flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1.5 text-[11px] font-bold text-primary backdrop-blur"><span className="size-1.5 rounded-full bg-primary shadow-[0_0_12px_var(--primary)]"/>PRECISION PLUMBING · VÄSTERÅS</p><h1 className="font-display text-5xl font-bold leading-[.98] sm:text-6xl lg:text-7xl xl:text-8xl">Plumbing,<br/><span className="text-primary">perfectly in flow.</span></h1><p className="mt-7 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">High-performance service for repairs and installations, with clear answers and precise arrival windows.</p><div className="mt-9 flex flex-col gap-3 sm:flex-row"><Button asChild size="lg" className="h-14 px-7"><Link to="/book">Book an intervention <ArrowRight/></Link></Button><Button asChild size="lg" variant="outline" className="h-14 border-foreground/12 bg-foreground/5"><Link to="/emergency"><Droplets className="text-destructive"/>Emergency service</Link></Button></div><div className="mt-10 grid max-w-lg grid-cols-2 gap-3 border-t border-foreground/8 pt-6 text-sm"><span className="flex items-center gap-2 text-muted-foreground"><ShieldCheck className="size-4 text-success"/>Certified & insured</span><span className="flex items-center gap-2 text-muted-foreground"><Clock3 className="size-4 text-primary"/>Clear arrival times</span></div></div><div className="relative -mx-5 mt-6 min-h-[360px] lg:mx-0 lg:mt-0"><div className="absolute inset-[8%] rounded-full bg-primary/10 blur-3xl"/><CopperVisual/><div className="absolute right-5 top-8 border-l border-primary/50 pl-3 text-xs text-muted-foreground lg:right-10"><p className="font-bold text-foreground">LIVE FLOW</p><p className="mt-1">Pressure stable · 3.2 bar</p></div></div></div></section><section className="border-b border-foreground/8 bg-owner px-5 py-7 lg:px-8"><div className="mx-auto grid max-w-7xl gap-6 sm:grid-cols-3"><Trust icon={<Gauge/>} value="4.9 / 5" label="Customer satisfaction"/><Trust icon={<MapPin/>} value="Västerås" label="Local service area"/><Trust icon={<Clock3/>} value="Same day" label="Emergency availability"/></div></section><section className="px-5 py-20 lg:px-8 lg:py-28"><div className="mx-auto max-w-7xl"><div className="grid gap-12 lg:grid-cols-[.72fr_1.28fr]"><div className="lg:sticky lg:top-28 lg:self-start"><p className="text-xs font-bold text-primary">THE VVS FLOW STANDARD</p><h2 className="mt-4 text-4xl font-bold leading-tight sm:text-5xl">Every inquiry gets an outcome.</h2><p className="mt-5 max-w-md leading-relaxed text-muted-foreground">No valuable job gets silently lost. From the first description to a confirmed arrival, every step stays clear.</p></div><div className="divide-y divide-foreground/8 border-y border-foreground/8">{features.map(({icon:Icon,title,text},index)=><div key={title} className="group grid gap-5 py-8 sm:grid-cols-[56px_minmax(0,1fr)_auto] sm:items-center"><span className="grid size-12 place-items-center rounded-md border border-foreground/10 bg-card text-primary transition-transform duration-300 group-hover:-translate-y-1"><Icon className="size-5"/></span><div><h3 className="text-xl font-semibold">{title}</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p></div><span className="font-display text-4xl font-bold text-foreground/10">0{index+1}</span></div>)}</div></div></div></section></CustomerShell>}
-function Trust({icon,value,label}:{icon:React.ReactNode;value:string;label:string}){return <div className="flex items-center gap-4 sm:justify-center"><span className="grid size-10 place-items-center rounded-md border border-foreground/10 bg-foreground/5 text-primary">{icon}</span><div><p className="font-display text-lg font-bold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div></div>}
+
+const process: { icon: LucideIcon; title: string; text: string }[] = [
+  { icon: Wrench, title: "Describe the job", text: "Tell us what happened in your own words. No technical knowledge needed." },
+  { icon: CalendarCheck, title: "Choose a time", text: "See practical arrival windows based on our actual workload." },
+  { icon: ShieldCheck, title: "Stay informed", text: "Get one clear place for access details, changes and confirmation." },
+];
+
+function Home() {
+  return (
+    <CustomerShell>
+      <section className="relative min-h-[calc(100svh-72px)] overflow-hidden bg-owner text-owner-foreground">
+        <img src={heroImage} alt="Ekström VVS plumber inspecting a modern heating installation" width={1920} height={1080} className="absolute inset-0 size-full object-cover object-[68%_center]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-owner via-owner/90 to-owner/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-owner/70 via-transparent to-owner/15" />
+        <div className="relative mx-auto flex min-h-[calc(100svh-72px)] max-w-7xl items-end px-5 pb-16 pt-28 sm:items-center sm:py-24 lg:px-8">
+          <div className="max-w-2xl animate-in fade-in slide-in-from-bottom-3 duration-500">
+            <p className="mb-5 flex items-center gap-2 text-xs font-semibold text-owner-foreground/70"><MapPin className="size-4 text-primary" />Local plumbing service in Västerås</p>
+            <h1 className="max-w-xl text-5xl font-bold leading-[1.02] sm:text-6xl lg:text-7xl">Plumbing done right. Answers without delay.</h1>
+            <p className="mt-6 max-w-xl text-base leading-7 text-owner-foreground/70 sm:text-lg">Repairs, emergencies and installations handled with precise arrival windows and clear communication from start to finish.</p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Button asChild size="lg" className="h-13 px-6"><Link to="/book">Book a service <ArrowRight /></Link></Button>
+              <Button asChild size="lg" variant="outline" className="h-13 border-owner-foreground/25 bg-owner/35 text-owner-foreground hover:bg-owner-foreground/10 hover:text-owner-foreground"><Link to="/emergency"><Droplets className="text-destructive" />Emergency help</Link></Button>
+            </div>
+            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-t border-owner-foreground/15 pt-5 text-sm text-owner-foreground/70">
+              <span className="flex items-center gap-2"><CheckCircle2 className="size-4 text-success" />Certified & insured</span>
+              <span className="flex items-center gap-2"><Clock3 className="size-4 text-primary" />Clear arrival times</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b bg-card px-5 py-7 lg:px-8">
+        <div className="mx-auto grid max-w-7xl gap-6 sm:grid-cols-3">
+          <Trust icon={<Gauge />} value="4.9 / 5" label="Customer satisfaction" />
+          <Trust icon={<MapPin />} value="Västerås" label="Local service area" />
+          <Trust icon={<Clock3 />} value="Same day" label="Emergency availability" />
+        </div>
+      </section>
+
+      <section className="px-5 py-20 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-12 lg:grid-cols-[.72fr_1.28fr]">
+            <div className="lg:sticky lg:top-28 lg:self-start">
+              <p className="text-sm font-semibold text-primary">A clearer way to book plumbing</p>
+              <h2 className="mt-4 text-4xl font-bold leading-tight sm:text-5xl">Every inquiry gets an outcome.</h2>
+              <p className="mt-5 max-w-md leading-7 text-muted-foreground">No valuable job gets silently lost. From the first description to a confirmed arrival, every step stays clear.</p>
+            </div>
+            <div className="border-y">
+              {process.map(({ icon: Icon, title, text }, index) => (
+                <div key={title} className="grid gap-5 border-b py-8 last:border-0 sm:grid-cols-[52px_minmax(0,1fr)_auto] sm:items-center">
+                  <span className="grid size-12 place-items-center rounded-md bg-accent text-primary"><Icon className="size-5" /></span>
+                  <div><h3 className="text-xl font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p></div>
+                  <span className="font-display text-3xl font-bold text-border">0{index + 1}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    </CustomerShell>
+  );
+}
+
+function Trust({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
+  return <div className="flex items-center gap-4 sm:justify-center"><span className="grid size-10 place-items-center rounded-md bg-accent text-primary">{icon}</span><div><p className="font-display text-lg font-bold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div></div>;
+}
