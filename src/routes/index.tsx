@@ -15,7 +15,7 @@ import { CustomerShell } from "@/components/vvs/customer-shell";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/ekstrom-plumber-hero.jpg";
 import inspectionImage from "@/assets/plumbing-inspection.jpg";
-import installationImage from "@/assets/plumbing-installation.jpg";
+import bathroomImage from "@/assets/plumbing-bathroom.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -80,7 +80,7 @@ function Home() {
       </section>
 
       <section className="relative isolate overflow-hidden border-b bg-owner px-5 py-16 text-owner-foreground lg:px-8 lg:py-20">
-        <img src={installationImage} alt="" aria-hidden="true" loading="lazy" width={1408} height={912} className="absolute inset-0 -z-20 size-full object-cover object-center" />
+        <img src={bathroomImage} alt="" aria-hidden="true" loading="lazy" width={1024} height={1024} className="absolute inset-0 -z-20 size-full object-cover object-center" />
         <div className="absolute inset-0 -z-10 bg-owner/80" />
         <div className="mx-auto grid max-w-7xl gap-8 sm:grid-cols-3 sm:divide-x sm:divide-owner-foreground/20">
           {trustPoints.map((point) => <Trust key={point.label} {...point} />)}
