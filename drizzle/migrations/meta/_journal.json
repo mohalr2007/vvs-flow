@@ -8,6 +8,13 @@
       "when": 1790417412513,
       "tag": "0000_vvs_flow_core",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790428295693,
+      "tag": "0001_project_tasks",
+      "breakpoints": true
     }
   ]
 }

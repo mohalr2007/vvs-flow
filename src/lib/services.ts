@@ -11,5 +11,5 @@ export const ownerService = { status: own.getOwnerStatus, claim: own.claimOwners
 export const jobService = { list: own.listJobs, get: own.getJob, save: own.saveJob, approve: own.approveJob, schedule: own.scheduleJob, setStatus: own.setJobStatus, calendar: own.getCalendar, fromInbox: own.createJobFromInbox };
 export const waitlistService = { get: own.getWaitlist, match: own.findMatches, sendOffer: own.sendOffer };
 export const leadService = { list: own.listLeads, setStage: own.setLeadStage };
-export const projectService = { list: own.listProjects, advance: own.advanceProject };
+export const projectService = { list: own.listProjects, advance: own.advanceProject, get: own.getProject, addDays: own.addProjectDays, updateTask: own.updateProjectTask, setStatus: own.setProjectStatus };
 export const rotService = { list: own.listRot, setStatus: own.setRotStatus };
