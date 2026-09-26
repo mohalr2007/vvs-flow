@@ -144,7 +144,9 @@ export const getCalendar = createServerFn({ method: "POST" }).middleware([requir
   const { db, now } = await guard(context);
   const from = startOfStockholmDay(now, data.offsetDays), to = startOfStockholmDay(now, data.offsetDays + 7);
   const { data: jobs } = await db.from("jobs").select("id,title,customer_name,zone,status,scheduled_at,duration_min").gte("scheduled_at", from.toISOString()).lt("scheduled_at", to.toISOString()).neq("status", "expired");
-  return { from: from.toISOString(), now: now.toISOString(), jobs: jobs ?? [] };
+  const fromD = new Date(from.getTime() + 12 * 3600000).toISOString().slice(0, 10), toD = new Date(to.getTime() + 12 * 3600000).toISOString().slice(0, 10);
+  const { data: tasks } = await db.from("project_tasks").select("id,title,work_date,start_hour,end_hour,done,project_id,projects(customer_name,ref)").gte("work_date", fromD).lt("work_date", toD);
+  return { from: from.toISOString(), now: now.toISOString(), jobs: jobs ?? [], tasks: tasks ?? [] };
 });
 
 export const getWaitlist = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
@@ -204,6 +206,39 @@ export const advanceProject = createServerFn({ method: "POST" }).middleware([req
   const next = PROJECT_FLOW[Math.min(PROJECT_FLOW.length - 1, i + 1)]!;
   await db.from("projects").update({ status: next }).eq("id", data.id);
   return { status: next };
+});
+
+export const getProject = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.parse(d)).handler(async ({ context, data }) => {
+  const { db } = await guard(context);
+  const { data: project } = await db.from("projects").select("*").eq("id", data.id).single();
+  if (!project) throw new Error("Project not found.");
+  const { data: tasks } = await db.from("project_tasks").select("*").eq("project_id", data.id).order("work_date").order("start_hour");
+  return { project, tasks: tasks ?? [] };
+});
+const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+export const addProjectDays = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ projectId: z.string().uuid(), title: z.string().trim().min(1).max(120), startDate: dateStr, days: z.number().int().min(1).max(90), skipWeekends: z.boolean(), startHour: z.number().int().min(0).max(23), endHour: z.number().int().min(1).max(24), notes: z.string().max(1000) }).refine((v) => v.endHour > v.startHour, "End must be after start").parse(d)).handler(async ({ context, data }) => {
+  const { db } = await guard(context);
+  const rows: { project_id: string; title: string; work_date: string; start_hour: number; end_hour: number; notes: string }[] = [];
+  const cur = new Date(data.startDate + "T12:00:00Z");
+  while (rows.length < data.days) {
+    const wd = cur.getUTCDay();
+    if (!data.skipWeekends || (wd !== 0 && wd !== 6)) rows.push({ project_id: data.projectId, title: data.days > 1 ? `${data.title} · day ${rows.length + 1}/${data.days}` : data.title, work_date: cur.toISOString().slice(0, 10), start_hour: data.startHour, end_hour: data.endHour, notes: data.notes });
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  const { error } = await db.from("project_tasks").insert(rows);
+  if (error) throw new Error(error.message);
+  return { count: rows.length };
+});
+export const updateProjectTask = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ id: z.string().uuid(), done: z.boolean().optional(), remove: z.boolean().optional() }).parse(d)).handler(async ({ context, data }) => {
+  const { db } = await guard(context);
+  if (data.remove) await db.from("project_tasks").delete().eq("id", data.id);
+  else await db.from("project_tasks").update({ done: !!data.done }).eq("id", data.id);
+  return { ok: true };
+});
+export const setProjectStatus = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ id: z.string().uuid(), status: z.enum(PROJECT_FLOW) }).parse(d)).handler(async ({ context, data }) => {
+  const { db } = await guard(context);
+  await db.from("projects").update({ status: data.status }).eq("id", data.id);
+  return { status: data.status };
 });
 
 export const understandInbox = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ text: z.string().trim().min(1).max(2000) }).parse(d)).handler(async ({ context, data }) => {
