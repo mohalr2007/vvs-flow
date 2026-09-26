@@ -27,6 +27,7 @@ import { Route as DashboardWaitlistRouteImport } from './routes/dashboard.waitli
 import { Route as OfferTokenRouteImport } from './routes/offer.$token'
 import { Route as RescheduleTokenRouteImport } from './routes/reschedule.$token'
 import { Route as DashboardJobsJobIdRouteImport } from './routes/dashboard.jobs.$jobId'
+import { Route as DashboardProjectsProjectIdRouteImport } from './routes/dashboard.projects_.$projectId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -118,6 +119,12 @@ const DashboardJobsJobIdRoute = DashboardJobsJobIdRouteImport.update({
   path: '/$jobId',
   getParentRoute: () => DashboardJobsRoute,
 } as any)
+const DashboardProjectsProjectIdRoute =
+  DashboardProjectsProjectIdRouteImport.update({
+    id: '/projects_/$projectId',
+    path: '/projects/$projectId',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/reschedule/$token': typeof RescheduleTokenRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/jobs/$jobId': typeof DashboardJobsJobIdRoute
+  '/dashboard/projects/$projectId': typeof DashboardProjectsProjectIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -157,6 +165,7 @@ export interface FileRoutesByTo {
   '/reschedule/$token': typeof RescheduleTokenRoute
   '/dashboard': typeof DashboardIndexRoute
   '/dashboard/jobs/$jobId': typeof DashboardJobsJobIdRoute
+  '/dashboard/projects/$projectId': typeof DashboardProjectsProjectIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -178,6 +187,7 @@ export interface FileRoutesById {
   '/reschedule/$token': typeof RescheduleTokenRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/jobs/$jobId': typeof DashboardJobsJobIdRoute
+  '/dashboard/projects_/$projectId': typeof DashboardProjectsProjectIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -200,6 +210,7 @@ export interface FileRouteTypes {
     | '/reschedule/$token'
     | '/dashboard/'
     | '/dashboard/jobs/$jobId'
+    | '/dashboard/projects/$projectId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -219,6 +230,7 @@ export interface FileRouteTypes {
     | '/reschedule/$token'
     | '/dashboard'
     | '/dashboard/jobs/$jobId'
+    | '/dashboard/projects/$projectId'
   id:
     | '__root__'
     | '/'
@@ -239,6 +251,7 @@ export interface FileRouteTypes {
     | '/reschedule/$token'
     | '/dashboard/'
     | '/dashboard/jobs/$jobId'
+    | '/dashboard/projects_/$projectId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -380,6 +393,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardJobsJobIdRouteImport
       parentRoute: typeof DashboardJobsRoute
     }
+    '/dashboard/projects_/$projectId': {
+      id: '/dashboard/projects_/$projectId'
+      path: '/projects/$projectId'
+      fullPath: '/dashboard/projects/$projectId'
+      preLoaderRoute: typeof DashboardProjectsProjectIdRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
@@ -405,6 +425,7 @@ interface DashboardRouteChildren {
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardWaitlistRoute: typeof DashboardWaitlistRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardProjectsProjectIdRoute: typeof DashboardProjectsProjectIdRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
@@ -417,6 +438,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardWaitlistRoute: DashboardWaitlistRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardProjectsProjectIdRoute: DashboardProjectsProjectIdRoute,
 }
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
