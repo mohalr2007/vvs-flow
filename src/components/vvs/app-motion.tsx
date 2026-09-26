@@ -8,7 +8,7 @@ export function AppMotion({ routeKey, children }: { routeKey: string; children: 
     );
 
     if (reduced || !("IntersectionObserver" in window)) {
-      elements.forEach((element) => element.dataset.revealed = "true");
+      elements.forEach((element) => element.dataset["revealed"] = "true");
       return;
     }
 
@@ -21,7 +21,7 @@ export function AppMotion({ routeKey, children }: { routeKey: string; children: 
       (entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
-          (entry.target as HTMLElement).dataset.revealed = "true";
+          (entry.target as HTMLElement).dataset["revealed"] = "true";
           observer.unobserve(entry.target);
         });
       },
