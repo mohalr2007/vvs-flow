@@ -12,8 +12,10 @@ export function findSlots(opts: { jobs: BusyJob[]; now: Date; duration: number; 
   const busy = jobs.filter((j) => j.scheduled_at && !INACTIVE.has(j.status)).map((j) => ({ s: new Date(j.scheduled_at!).getTime(), e: new Date(j.scheduled_at!).getTime() + j.duration_min * 60000, zone: j.zone }));
   const out: { day: string; slots: Slot[] }[] = [];
   const base = stockholmParts(now);
-  for (let i = 0; i < days && out.length < 3; i++) {
+  for (let i = 0; i < days + 4 && out.length < 3; i++) {
     const slots: Slot[] = [];
+    const wd = new Date(Date.UTC(base.y, base.m, base.d + i)).getUTCDay();
+    if (wd === 0 || wd === 6) { continue; }
     for (let t = startHour * 60; t + duration <= endHour * 60 && slots.length < perDay; t += 30) {
       const start = stockholmDate(base.y, base.m, base.d + i, Math.floor(t / 60), t % 60);
       const s = start.getTime(), e = s + duration * 60000;
