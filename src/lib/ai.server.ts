@@ -26,7 +26,7 @@ Structure a customer's plumbing request. Rules:
 - duration_min: realistic on-site minutes, multiple of 15 (30–480).
 - price_low/price_high: estimated SEK incl. VAT labour+basic parts (hourly 850 SEK). For renovations give site-visit 0/0.
 - confidence: 0–100, how clearly the request maps to a known plumbing job. Unusual/vague requests must be below 60.
-- needs_site_visit: true for renovations, installations or unclear problems.
+- needs_site_visit: true ONLY for renovations, new installations, or problems whose cause cannot be identified from the text. Ordinary leaks, taps, toilets, drains, radiators are false.
 - location_hint: area or address mentioned, else null.
 - missing_fields: up to 3 short items still needed (e.g. "Exact address", "Photo of the leak"). Never ask for things already given.`;
 
@@ -54,9 +54,13 @@ export async function extractRequest(message: string, kind: string): Promise<{ d
       experimental_output: Output.object({ schema: requestSchema }),
       providerOptions: { openai: { forceReasoning: true, reasoningEffort: "low", reasoningSummary: "auto", store: false, include: ["reasoning.encrypted_content"] } },
     });
-    for await (const _ of result.textStream) { /* consume stream */ }
-    const out = await result.experimental_output;
-    const data = requestSchema.parse(out);
+    let text = "";
+    for await (const chunk of result.textStream) text += chunk;
+    let parsed: unknown;
+    try { parsed = JSON.parse(text); } catch { return { error: "The request could not be understood. Please add a few more details." }; }
+    const safe = requestSchema.safeParse(parsed);
+    if (!safe.success) return { error: "The request could not be understood. Please add a few more details." };
+    const data = safe.data;
     data.confidence = Math.max(0, Math.min(100, Math.round(data.confidence)));
     data.duration_min = Math.max(30, Math.min(480, Math.round(data.duration_min / 15) * 15));
     data.missing_fields = data.missing_fields.slice(0, 3);

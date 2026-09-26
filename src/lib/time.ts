@@ -29,4 +29,4 @@ export const fmtShortDay = (iso: string | Date) => new Date(iso).toLocaleDateStr
 export const fmtRange = (iso: string, minutes: number) => `${fmtTime(iso)}–${fmtTime(new Date(new Date(iso).getTime() + minutes * 60000))}`;
 export const sameStockholmDay = (a: Date, b: Date) => { const x = stockholmParts(a), y = stockholmParts(b); return x.y === y.y && x.m === y.m && x.d === y.d; };
 export const sek = (n: number) => `${n.toLocaleString("sv-SE")} SEK`;
-export const zoneFromAddress = (address: string) => address.replace(/\s/g, "").match(/\b?(7\d{2})\d{2}/)?.[1] ?? "722";
+export const zoneFromAddress = (address: string) => address.replace(/\s/g, "").match(/(7\d{2})\d{2}/)?.[1] ?? "722";

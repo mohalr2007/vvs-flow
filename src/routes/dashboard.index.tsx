@@ -1,12 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { toast } from "sonner";
-import { AlertTriangle, ArrowRight, CircleDollarSign, Clock3, DoorOpen, FileQuestion, RefreshCw, ShieldQuestion, CheckCircle2, RotateCcw } from "lucide-react";
+import { AlertTriangle, ArrowRight, CircleDollarSign, Clock3, DoorOpen, FileQuestion, RefreshCw, ShieldQuestion, CheckCircle2 } from "lucide-react";
 import { PageHeader, MetricCard, StatusBadge, EmptyState } from "@/components/vvs/primitives";
 import { Timeline, type TimelineItem } from "@/components/vvs/owner-ui";
-import { QueryState, errMsg } from "@/components/vvs/query-state";
+import { DemoControls } from "@/components/vvs/demo-controls";
+import { QueryState } from "@/components/vvs/query-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ownerService } from "@/lib/services";
@@ -19,15 +18,6 @@ export const Route = createFileRoute("/dashboard/")({
 });
 
 function greeting(iso: string) { const h = Number(fmtTime(iso).slice(0, 2)); return h < 10 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; }
-
-export function DemoControls() {
-  const reset = useServerFn(ownerService.reset);
-  const advance = useServerFn(ownerService.advance);
-  const qc = useQueryClient();
-  const [busy, setBusy] = useState("");
-  const run = async (label: string, fn: () => Promise<unknown>) => { setBusy(label); try { await fn(); await qc.invalidateQueries(); toast.success(`${label} done`); } catch (e) { toast.error(errMsg(e)); } finally { setBusy(""); } };
-  return <Card className="rounded-md border-dashed p-4 shadow-none"><p className="text-xs font-bold text-muted-foreground">DEMO CONTROLS</p><p className="mt-1 text-xs text-muted-foreground">Simulated clock and data — separate from real business actions.</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={!!busy} onClick={() => { if (confirm("Reset all demo data?")) run("Reset", () => reset()); }}><RotateCcw/>{busy === "Reset" ? "Resetting…" : "Reset Demo"}</Button><Button size="sm" variant="outline" disabled={!!busy} onClick={() => run("Advance 15 min", () => advance({ data: { minutes: 15 } }))}>Advance 15 min</Button><Button size="sm" variant="outline" disabled={!!busy} onClick={() => run("Advance 24 hours", () => advance({ data: { minutes: 1440 } }))}>Advance 24 hours</Button></div></Card>;
-}
 
 function Dashboard() {
   const fetchOverview = useServerFn(ownerService.overview);
