@@ -31,7 +31,7 @@ export function OwnerShell() {
       <div className="border-t border-owner-foreground/10 p-3"><Link to="/login" className="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm text-owner-foreground/65 hover:bg-owner-foreground/8"><LogOut className="size-[18px]"/>Sign out</Link></div>
     </aside>
     <div className="min-w-0 lg:col-start-2">
-      <header className="sticky top-0 z-30 grid h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-foreground/8 bg-background/80 px-4 backdrop-blur-xl lg:px-8">
+      <header className="sticky top-0 z-30 grid h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b bg-background/95 px-4 backdrop-blur-xl lg:px-8">
         <Sheet><SheetTrigger asChild><Button size="icon" variant="ghost" className="lg:hidden" aria-label="Open navigation"><Menu/></Button></SheetTrigger><SheetContent side="left" className="w-72 bg-owner text-owner-foreground"><div className="mb-6"><Brand inverted/></div><NavItems mobile /></SheetContent></Sheet>
         <span className="truncate text-sm font-semibold lg:hidden">{current}</span>
         <div className="hidden min-w-0 lg:block"><p className="truncate text-sm font-semibold">{session.owner.business}</p><p className="text-xs text-muted-foreground">Operations workspace</p></div>
