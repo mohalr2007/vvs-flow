@@ -60,7 +60,7 @@
 
 * { border-color: var(--border); }
 html { scroll-behavior: smooth; background: var(--background); }
-body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); letter-spacing: 0; text-rendering: optimizeLegibility; transition: background-color .35s ease, color .35s ease; }
+body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); letter-spacing: 0; text-rendering: optimizeLegibility; }
 h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: 0; }
 ::selection { background: color-mix(in oklab, var(--primary) 18%, transparent); }
 button, a, input, textarea, select { outline-offset: 3px; }
@@ -70,6 +70,7 @@ button, a, input, textarea, select { outline-offset: 3px; }
 @keyframes success-pop { 0% { transform: scale(.7); opacity: 0 } 70% { transform: scale(1.08) } 100% { transform: scale(1); opacity: 1 } }
 @keyframes pulse-soft { 50% { opacity: .55 } }
 @keyframes page-enter { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes theme-icon-enter { from { opacity: 0; transform: rotate(-35deg) scale(.72) } to { opacity: 1; transform: rotate(0) scale(1) } }
 
 @utility animate-scan { animation: scan 2.2s ease-in-out infinite; }
 @utility animate-success { animation: success-pop .45s cubic-bezier(.2,.8,.2,1) both; }
@@ -81,7 +82,11 @@ button, a, input, textarea, select { outline-offset: 3px; }
 @utility technical-grid { background-image: linear-gradient(to right,color-mix(in oklab,var(--foreground) 4%,transparent) 1px,transparent 1px),linear-gradient(to bottom,color-mix(in oklab,var(--foreground) 4%,transparent) 1px,transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(to bottom,black,transparent 90%); }
 
 .page-enter { animation: page-enter .38s cubic-bezier(.2,.75,.2,1) both; }
-.bg-background, .bg-card, .bg-popover, .bg-secondary, .bg-muted, .bg-accent { transition-property: background-color, border-color, color, box-shadow; transition-duration: .3s; transition-timing-function: ease; }
+.theme-icon-enter { display: grid; place-items: center; animation: theme-icon-enter .28s cubic-bezier(.2,.8,.2,1) both; }
+
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-new(root) { z-index: 9999; }
+::view-transition-old(root) { z-index: 1; }
 
 @supports (animation-timeline: view()) {
   main > section, [data-reveal] {
