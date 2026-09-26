@@ -53,7 +53,7 @@ export function OwnerShell() {
   const status = useQuery({ queryKey: ["owner-status"], queryFn: () => getStatus() });
   const signOut = useSignOut();
   if (status.isPending) return <div className="mx-auto max-w-5xl p-8"><PageSkeleton/></div>;
-  if (status.isError) return <div className="grid min-h-screen place-items-center p-6 text-center"><div><p className="font-semibold">The workspace could not be opened.</p><Button className="mt-4" onClick={() => status.refetch()}>Try again</Button></div></div>;
+  if (status.isError) return <div className="grid min-h-screen place-items-center p-6 text-center"><div><p className="font-semibold">The workspace could not be opened.</p><p className="mt-2 text-sm text-muted-foreground">{errMsg(status.error)}</p><Button className="mt-4" onClick={() => status.refetch()}>Try again</Button></div></div>;
   if (!status.data.isOwner) return <AccessGate claimable={status.data.claimable} />;
   const email = user?.email ?? "";
   return <div className="min-h-screen bg-background lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
