@@ -43,7 +43,7 @@ function ProjectDetail() {
 
   return <div className="space-y-6">
     <Button variant="ghost" size="sm" asChild><Link to="/dashboard/projects"><ArrowLeft/>All projects</Link></Button>
-    <QueryState q={q}>{({ project: p, tasks, restDays, workStart, workEnd }) => {
+    <QueryState q={q}>{({ project: p, tasks, restDays = [0, 6], workStart = 8, workEnd = 17 }) => {
       const planned = tasks.length > 0;
       const byDate = new Map(tasks.map(t => [t.work_date, t]));
       const last = tasks[tasks.length - 1]?.work_date;
