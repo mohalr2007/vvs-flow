@@ -4,6 +4,7 @@ import { Brand } from "./brand";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ownerAuthService } from "@/lib/auth";
+import { ThemeToggle } from "./theme-toggle";
 
 const items = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -35,7 +36,7 @@ export function OwnerShell() {
         <Sheet><SheetTrigger asChild><Button size="icon" variant="ghost" className="lg:hidden" aria-label="Open navigation"><Menu/></Button></SheetTrigger><SheetContent side="left" className="w-72 bg-owner text-owner-foreground"><div className="mb-6"><Brand inverted/></div><NavItems mobile /></SheetContent></Sheet>
         <span className="truncate text-sm font-semibold lg:hidden">{current}</span>
         <div className="hidden min-w-0 lg:block"><p className="truncate text-sm font-semibold">{session.owner.business}</p><p className="text-xs text-muted-foreground">Operations workspace</p></div>
-        <div className="flex items-center gap-3"><span className="hidden text-xs text-muted-foreground sm:inline">Demo workspace</span><span className="grid size-9 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground" title={`${session.owner.name} · frontend demo session`}>{session.owner.initials}</span></div>
+        <div className="flex items-center gap-2"><span className="hidden text-xs text-muted-foreground sm:inline">Demo workspace</span><ThemeToggle/><span className="grid size-9 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground" title={`${session.owner.name} · frontend demo session`}>{session.owner.initials}</span></div>
       </header>
       <main className="mx-auto max-w-[1520px] px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8"><Outlet /></main>
     </div>
