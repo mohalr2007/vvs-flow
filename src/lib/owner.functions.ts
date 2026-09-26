@@ -155,7 +155,7 @@ export const getWaitlist = createServerFn({ method: "POST" }).middleware([requir
   const [{ data: entries }, { data: slots }, { data: offers }] = await Promise.all([
     db.from("waitlist_entries").select("*").in("status", ["waiting", "offered"]).order("created_at"),
     db.from("jobs").select("id,title,zone,duration_min,scheduled_at,value").eq("status", "cancelled").gt("scheduled_at", now.toISOString()).order("scheduled_at"),
-    db.from("offers").select("*,waitlist_entries(customer_name,title)").order("created_at", { ascending: false }).limit(20),
+    db.from("offers").select("*,waitlist_entries(customer_name,title,email)").order("created_at", { ascending: false }).limit(20),
   ]);
   const withTime = (offers ?? []).map((o) => ({ ...o, secondsLeft: Math.max(0, Math.round((new Date(o.expires_at).getTime() - now.getTime()) / 1000)) }));
   const recovered = new Set(withTime.filter((o) => o.status === "accepted").map((o) => o.source_job_id));
