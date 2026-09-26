@@ -15,7 +15,6 @@ import { CustomerShell } from "@/components/vvs/customer-shell";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/ekstrom-plumber-hero.jpg";
 import inspectionImage from "@/assets/plumbing-inspection.jpg";
-import bathroomImage from "@/assets/plumbing-bathroom.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
