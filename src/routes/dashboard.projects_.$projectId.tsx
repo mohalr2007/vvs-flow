@@ -108,7 +108,7 @@ function ProjectDetail() {
                 <Button type="submit" className="w-full">Plan {planForm.days} working day{planForm.days === 1 ? "" : "s"}</Button>
               </form></Card>
             : <>
-              {sel ? <DayEditor key={sel.id + sel.updated_key} task={sel} worked={p.worked_rest_dates.includes(sel.work_date)} onRestore={() => run(() => toggleRest({ data: { projectId: p.id, date: sel.work_date } }), "Rest day restored — schedule updated")} onClose={() => setSelected(null)} onSaved={refresh}/>
+              {sel ? <DayEditor key={sel.id} task={sel} worked={p.worked_rest_dates.includes(sel.work_date)} onRestore={() => run(() => toggleRest({ data: { projectId: p.id, date: sel.work_date } }), "Rest day restored — schedule updated")} onClose={() => setSelected(null)} onSaved={refresh}/>
               : selRest ? <Card className="rounded-md p-5 shadow-none"><div className="flex items-start justify-between"><h2 className="font-bold">{fmtDate(selected!)} · Rest day</h2><Button size="icon" variant="ghost" aria-label="Close" onClick={() => setSelected(null)}><X/></Button></div><p className="mt-2 text-sm text-muted-foreground">This is one of your rest days, so the site skips it. Work it to finish sooner — every following day moves one day earlier.</p><Button className="mt-4 w-full" onClick={() => run(() => toggleRest({ data: { projectId: p.id, date: selected! } }), "Rest day will be worked — schedule updated")}>Work this rest day</Button></Card>
               : <Card className="rounded-md border-dashed p-5 text-sm text-muted-foreground shadow-none">Select a day in the calendar to write what needs to be done that day.</Card>}
 
@@ -131,7 +131,7 @@ function ProjectDetail() {
 
 function Legend({ c, children }: { c: string; children: React.ReactNode }) { return <span className="inline-flex items-center gap-1.5"><span className={cn("size-3 rounded-sm", c)}/>{children}</span>; }
 
-type Task = { id: string; title: string; work_date: string; start_hour: number; end_hour: number; notes: string; done: boolean; is_extension: boolean; checklist: unknown; updated_key?: string };
+type Task = { id: string; title: string; work_date: string; start_hour: number; end_hour: number; notes: string; done: boolean; is_extension: boolean; checklist: unknown };
 function DayEditor({ task, worked, onRestore, onClose, onSaved }: { task: Task; worked: boolean; onRestore: () => void; onClose: () => void; onSaved: () => Promise<unknown> }) {
   const update = useServerFn(projectService.updateTask);
   const [f, setF] = useState({ title: task.title, notes: task.notes, start_hour: task.start_hour, end_hour: task.end_hour, done: task.done, checklist: (task.checklist as Item[]) ?? [] });
