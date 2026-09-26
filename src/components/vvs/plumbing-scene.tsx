@@ -19,6 +19,21 @@ function Joint({ position, radius = 0.32 }: { position: [number, number, number]
   return <mesh position={position} castShadow><sphereGeometry args={[radius, 32, 20]}/><meshStandardMaterial color={copperLight} metalness={0.78} roughness={0.2}/></mesh>;
 }
 
+function Elbow({ position, rotation = [0,0,0] }: { position: [number,number,number]; rotation?: [number,number,number] }) {
+  return <mesh position={position} rotation={rotation} castShadow><torusGeometry args={[.62,.22,24,48,Math.PI/2]}/><meshPhysicalMaterial color={copperLight} metalness={.92} roughness={.12} clearcoat={1} clearcoatRoughness={.08}/></mesh>;
+}
+
+function PressureGauge() {
+  const needle=useRef<THREE.Mesh>(null);
+  useFrame((state)=>{if(needle.current) needle.current.rotation.z=-.42+Math.sin(state.clock.elapsedTime*.8)*.04});
+  return <group position={[-.2,1.72,.38]} rotation={[0,0,.06]}>
+    <mesh castShadow><cylinderGeometry args={[.55,.55,.18,48]}/><meshPhysicalMaterial color={navy} metalness={.72} roughness={.16} clearcoat={1}/></mesh>
+    <mesh position={[0,-.1,.1]} rotation={[Math.PI/2,0,0]}><circleGeometry args={[.43,48]}/><meshStandardMaterial color="#eaf3fb" roughness={.22}/></mesh>
+    <mesh ref={needle} position={[0,-.205,.17]} rotation={[Math.PI/2,0,-.42]}><boxGeometry args={[.035,.52,.035]}/><meshStandardMaterial color={water} emissive={water} emissiveIntensity={.25}/></mesh>
+    <mesh position={[0,-.22,.18]} rotation={[Math.PI/2,0,0]}><sphereGeometry args={[.07,20,16]}/><meshStandardMaterial color={navy}/></mesh>
+  </group>;
+}
+
 function FlowBeads({ active }: { active: boolean }) {
   const group = useRef<THREE.Group>(null);
   useFrame((state, rawDelta) => {
@@ -39,7 +54,7 @@ function Valve({ active }: { active: boolean }) {
     const dt = Math.min(rawDelta, .05);
     wheel.current.rotation.z += dt * (active ? .28 : .06);
   });
-  return <group position={[1.55,.25,.1]} rotation={[0,0,Math.PI/2]}><Pipe position={[0,0,0]} length={1.25} radius={.2}/><group ref={wheel} position={[0,.72,0]} rotation={[Math.PI/2,0,0]}><mesh castShadow><torusGeometry args={[.55,.09,16,40]}/><meshStandardMaterial color={navy} metalness={.5} roughness={.3}/></mesh>{[0,Math.PI/2].map((r)=><mesh key={r} rotation-z={r}><boxGeometry args={[1.05,.1,.1]}/><meshStandardMaterial color={navy} metalness={.5} roughness={.3}/></mesh>)}</group></group>;
+  return <group position={[1.45,.15,.1]} rotation={[0,0,Math.PI/2]}><Pipe position={[0,0,0]} length={1.05} radius={.18}/><group ref={wheel} position={[0,.62,0]} rotation={[Math.PI/2,0,0]}><mesh castShadow><torusGeometry args={[.48,.065,20,48]}/><meshPhysicalMaterial color={water} metalness={.72} roughness={.16} clearcoat={1}/></mesh>{[0,Math.PI/2].map((r)=><mesh key={r} rotation-z={r}><capsuleGeometry args={[.045,.82,8,16]}/><meshStandardMaterial color={water} metalness={.7} roughness={.18}/></mesh>)}<mesh><cylinderGeometry args={[.13,.13,.16,24]}/><meshStandardMaterial color={copperLight} metalness={.9} roughness={.12}/></mesh></group></group>;
 }
 
 function PlumbingAssembly({ mode }: { mode: SceneMode }) {
@@ -50,11 +65,14 @@ function PlumbingAssembly({ mode }: { mode: SceneMode }) {
     const target = mode === "project" ? .18 : -.08;
     assembly.current.rotation.y += (target + Math.sin(state.clock.elapsedTime * .32) * .08 - assembly.current.rotation.y) * (1 - Math.exp(-2 * dt));
   });
-  return <Float speed={1.1} rotationIntensity={.08} floatIntensity={.22}><group ref={assembly} rotation={[-.08,-.08,-.05]}>
-    <Pipe position={[-1.45,0,0]} length={4.2}/><Joint position={[-1.45,2.1,0]}/><Joint position={[-1.45,-2.1,0]}/>
-    <Pipe position={[0,.25,0]} rotation={[0,0,Math.PI/2]} length={3.15}/>
-    <Joint position={[0,.25,0]}/><Joint position={[1.55,.25,0]}/>
-    <Pipe position={[0,-1.15,0]} length={2.8} radius={.2}/><Joint position={[0,-2.55,0]} radius={.27}/>
+  return <Float speed={.75} rotationIntensity={.045} floatIntensity={.14}><group ref={assembly} rotation={[-.05,-.08,-.03]}>
+    <Pipe position={[-1.35,-.05,0]} length={3.4} radius={.22}/><Elbow position={[-.73,1.65,0]} rotation={[0,0,Math.PI/2]}/>
+    <Pipe position={[.48,2.27,0]} rotation={[0,0,Math.PI/2]} length={2.42} radius={.22}/><Elbow position={[1.69,1.65,0]} rotation={[0,0,-Math.PI/2]}/>
+    <Pipe position={[2.31,.95,0]} length={1.4} radius={.22}/>
+    <Pipe position={[0,.15,0]} rotation={[0,0,Math.PI/2]} length={2.7} radius={.2}/>
+    <Joint position={[0,.15,0]} radius={.28}/><Joint position={[1.35,.15,0]} radius={.25}/>
+    <Pipe position={[0,-1.15,0]} length={2.6} radius={.18}/><Joint position={[0,-2.45,0]} radius={.24}/>
+    <PressureGauge/>
     <Valve active={mode !== "repair"}/>
     <FlowBeads active={mode !== "repair"}/>
     {mode === "repair" && <group position={[-1.12,-.62,.35]}><mesh><sphereGeometry args={[.19,24,16]}/><meshStandardMaterial color={water} transparent opacity={.78} roughness={.05}/></mesh><mesh position={[.18,-.28,0]} scale={[.65,1,.65]}><sphereGeometry args={[.14,20,14]}/><meshStandardMaterial color={water} transparent opacity={.62}/></mesh></group>}
