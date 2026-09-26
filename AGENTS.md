@@ -8,3 +8,4 @@
 - Authentication is an explicit frontend demo boundary only; never represent it as production security until a real identity service is connected.
 - Do not use 3D visuals; use authentic trade photography and restrained interface motion for faster, more credible customer experiences.
 - Use a bright Scandinavian industrial system across customer and owner screens: crisp white surfaces, charcoal structure, muted blue accents, Urbanist headings, and Epilogue body text.
+- Use the root-level theme and motion layer for persistent appearance changes and route/scroll transitions, so every customer and owner page behaves consistently.

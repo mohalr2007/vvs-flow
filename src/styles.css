@@ -2,7 +2,7 @@
 @source "../src";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --font-sans: "Epilogue", ui-sans-serif, system-ui, sans-serif;
@@ -40,9 +40,25 @@
   --owner: oklch(.17 .025 252); --owner-foreground: oklch(.96 .008 247);
 }
 
+.dark {
+  --background: oklch(.155 .018 252); --foreground: oklch(.94 .009 247);
+  --card: oklch(.195 .021 252); --card-foreground: oklch(.94 .009 247);
+  --popover: oklch(.205 .022 252); --popover-foreground: oklch(.94 .009 247);
+  --primary: oklch(.68 .145 247); --primary-foreground: oklch(.13 .025 252);
+  --secondary: oklch(.245 .022 252); --secondary-foreground: oklch(.92 .01 247);
+  --muted: oklch(.235 .018 252); --muted-foreground: oklch(.7 .018 247);
+  --accent: oklch(.27 .045 248); --accent-foreground: oklch(.82 .09 245);
+  --destructive: oklch(.65 .19 27); --destructive-foreground: oklch(.98 .005 90);
+  --border: oklch(.31 .02 250); --input: oklch(.36 .022 250); --ring: oklch(.7 .13 247);
+  --success: oklch(.7 .13 157); --success-foreground: oklch(.89 .065 157);
+  --warning: oklch(.78 .12 78); --warning-foreground: oklch(.92 .055 83);
+  --copper: oklch(.7 .09 55); --copper-light: oklch(.32 .05 55);
+  --owner: oklch(.105 .018 252); --owner-foreground: oklch(.95 .008 247);
+}
+
 * { border-color: var(--border); }
-html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); letter-spacing: 0; text-rendering: optimizeLegibility; }
+html { scroll-behavior: smooth; background: var(--background); }
+body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); letter-spacing: 0; text-rendering: optimizeLegibility; transition: background-color .35s ease, color .35s ease; }
 h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: 0; }
 ::selection { background: color-mix(in oklab, var(--primary) 18%, transparent); }
 button, a, input, textarea, select { outline-offset: 3px; }
@@ -51,6 +67,7 @@ button, a, input, textarea, select { outline-offset: 3px; }
 @keyframes scan { 0% { transform: translateY(-120%); opacity: 0 } 15%,85% { opacity: .45 } 100% { transform: translateY(300%); opacity: 0 } }
 @keyframes success-pop { 0% { transform: scale(.7); opacity: 0 } 70% { transform: scale(1.08) } 100% { transform: scale(1); opacity: 1 } }
 @keyframes pulse-soft { 50% { opacity: .55 } }
+@keyframes page-enter { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
 
 @utility animate-scan { animation: scan 2.2s ease-in-out infinite; }
 @utility animate-success { animation: success-pop .45s cubic-bezier(.2,.8,.2,1) both; }
@@ -61,6 +78,12 @@ button, a, input, textarea, select { outline-offset: 3px; }
 @utility chrome-surface { background: var(--card); border: 1px solid var(--border); box-shadow: 0 12px 36px color-mix(in oklab,var(--owner) 9%,transparent); }
 @utility technical-grid { background-image: linear-gradient(to right,color-mix(in oklab,var(--foreground) 4%,transparent) 1px,transparent 1px),linear-gradient(to bottom,color-mix(in oklab,var(--foreground) 4%,transparent) 1px,transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(to bottom,black,transparent 90%); }
 
+.page-enter { animation: page-enter .38s cubic-bezier(.2,.75,.2,1) both; }
+.scroll-reveal { opacity: 0; transform: translateY(22px); transition: opacity .62s cubic-bezier(.2,.75,.2,1) var(--reveal-delay, 0ms), transform .62s cubic-bezier(.2,.75,.2,1) var(--reveal-delay, 0ms); }
+.scroll-reveal[data-revealed="true"] { opacity: 1; transform: translateY(0); }
+.bg-background, .bg-card, .bg-popover, .bg-secondary, .bg-muted, .bg-accent { transition-property: background-color, border-color, color, box-shadow; transition-duration: .3s; transition-timing-function: ease; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+  .scroll-reveal { opacity: 1; transform: none; }
 }
