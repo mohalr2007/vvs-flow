@@ -76,9 +76,9 @@ function ProjectDetail() {
               <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground">{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => <span key={d}>{d}</span>)}</div>
               <div className="mt-1 grid grid-cols-7 gap-1">{cells.map((c, i) => {
                 if (!c) return <div key={i}/>;
-                const k = iso(c), t = byDate.get(k), rest = isRest(k), worked = p.worked_rest_dates.includes(k);
+                const k = iso(c), t = byDate.get(k), rest = isRest(k), worked = (p.worked_rest_dates ?? []).includes(k);
                 const clickable = !!t || (rest && inSpan(k)) || !planned;
-                const open = t ? (t.checklist as Item[]).filter(x => !x.done).length : 0;
+                const open = t ? ((t.checklist as Item[] | null) ?? []).filter(x => !x.done).length : 0;
                 return <button key={k} disabled={!clickable} onClick={() => planned ? setSelected(k) : setPlanForm(f => ({ ...f, startDate: k }))} className={cn("min-h-16 rounded-md border p-1.5 text-left text-xs transition-colors enabled:hover:border-copper disabled:cursor-default",
                   rest && !t && "bg-[repeating-linear-gradient(135deg,var(--muted)_0_6px,transparent_6px_12px)] text-muted-foreground",
                   t && (t.done ? "border-success/50 bg-success/10" : t.is_extension ? "border-warning/60 bg-warning/12" : "border-copper/50 bg-copper/12"),
@@ -93,7 +93,7 @@ function ProjectDetail() {
             </Card>
 
             {planned && <Card className="rounded-md p-5 shadow-none"><h2 className="font-bold">Working days</h2>
-              <ul className="mt-3 divide-y">{tasks.map((t, n) => { const items = t.checklist as Item[]; return <li key={t.id}><button onClick={() => { setSelected(t.work_date); const d = new Date(t.work_date + "T12:00:00"); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)); }} className={cn("flex w-full items-center gap-3 py-2.5 text-left hover:bg-muted/50", selected === t.work_date && "bg-muted/60")}><span className={cn("grid size-7 shrink-0 place-items-center rounded-full border text-xs font-bold", t.done && "border-success bg-success text-background", t.is_extension && !t.done && "border-warning")}>{t.done ? <Check className="size-4"/> : n + 1}</span><div className="min-w-0 flex-1"><p className={cn("truncate text-sm font-semibold", t.done && "line-through opacity-60")}>{t.title}</p><p className="text-xs text-muted-foreground">{fmtDate(t.work_date)} · {hh(t.start_hour)}–{hh(t.end_hour)}{items.length ? ` · ${items.filter(x => x.done).length}/${items.length} tasks` : ""}{p.worked_rest_dates.includes(t.work_date) && " · rest day worked"}</p></div></button></li>; })}</ul>
+              <ul className="mt-3 divide-y">{tasks.map((t, n) => { const items = t.checklist as Item[]; return <li key={t.id}><button onClick={() => { setSelected(t.work_date); const d = new Date(t.work_date + "T12:00:00"); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)); }} className={cn("flex w-full items-center gap-3 py-2.5 text-left hover:bg-muted/50", selected === t.work_date && "bg-muted/60")}><span className={cn("grid size-7 shrink-0 place-items-center rounded-full border text-xs font-bold", t.done && "border-success bg-success text-background", t.is_extension && !t.done && "border-warning")}>{t.done ? <Check className="size-4"/> : n + 1}</span><div className="min-w-0 flex-1"><p className={cn("truncate text-sm font-semibold", t.done && "line-through opacity-60")}>{t.title}</p><p className="text-xs text-muted-foreground">{fmtDate(t.work_date)} · {hh(t.start_hour)}–{hh(t.end_hour)}{items.length ? ` · ${items.filter(x => x.done).length}/${items.length} tasks` : ""}{(p.worked_rest_dates ?? []).includes(t.work_date) && " · rest day worked"}</p></div></button></li>; })}</ul>
             </Card>}
 
             <ProjectQuote key={p.id} projectId={p.id} initial={p.quote}/>
@@ -108,7 +108,7 @@ function ProjectDetail() {
                 <Button type="submit" className="w-full">Plan {planForm.days} working day{planForm.days === 1 ? "" : "s"}</Button>
               </form></Card>
             : <>
-              {sel ? <DayEditor key={sel.id} task={sel} worked={p.worked_rest_dates.includes(sel.work_date)} onRestore={() => run(() => toggleRest({ data: { projectId: p.id, date: sel.work_date } }), "Rest day restored — schedule updated")} onClose={() => setSelected(null)} onSaved={refresh}/>
+              {sel ? <DayEditor key={sel.id} task={sel} worked={(p.worked_rest_dates ?? []).includes(sel.work_date)} onRestore={() => run(() => toggleRest({ data: { projectId: p.id, date: sel.work_date } }), "Rest day restored — schedule updated")} onClose={() => setSelected(null)} onSaved={refresh}/>
               : selRest ? <Card className="rounded-md p-5 shadow-none"><div className="flex items-start justify-between"><h2 className="font-bold">{fmtDate(selected!)} · Rest day</h2><Button size="icon" variant="ghost" aria-label="Close" onClick={() => setSelected(null)}><X/></Button></div><p className="mt-2 text-sm text-muted-foreground">This is one of your rest days, so the site skips it. Work it to finish sooner — every following day moves one day earlier.</p><Button className="mt-4 w-full" onClick={() => run(() => toggleRest({ data: { projectId: p.id, date: selected! } }), "Rest day will be worked — schedule updated")}>Work this rest day</Button></Card>
               : <Card className="rounded-md border-dashed p-5 text-sm text-muted-foreground shadow-none">Select a day in the calendar to write what needs to be done that day.</Card>}
 
@@ -134,10 +134,10 @@ function Legend({ c, children }: { c: string; children: React.ReactNode }) { ret
 type Task = { id: string; title: string; work_date: string; start_hour: number; end_hour: number; notes: string; done: boolean; is_extension: boolean; checklist: unknown };
 function DayEditor({ task, worked, onRestore, onClose, onSaved }: { task: Task; worked: boolean; onRestore: () => void; onClose: () => void; onSaved: () => Promise<unknown> }) {
   const update = useServerFn(projectService.updateTask);
-  const [f, setF] = useState({ title: task.title, notes: task.notes, start_hour: task.start_hour, end_hour: task.end_hour, done: task.done, checklist: (task.checklist as Item[]) ?? [] });
+  const [f, setF] = useState({ title: task.title, notes: task.notes, start_hour: task.start_hour, end_hour: task.end_hour, done: task.done, checklist: ((task.checklist as Item[] | null) ?? []) });
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setF({ title: task.title, notes: task.notes, start_hour: task.start_hour, end_hour: task.end_hour, done: task.done, checklist: (task.checklist as Item[]) ?? [] }); }, [task]);
+  useEffect(() => { setF({ title: task.title, notes: task.notes, start_hour: task.start_hour, end_hour: task.end_hour, done: task.done, checklist: ((task.checklist as Item[] | null) ?? []) }); }, [task]);
   const save = async (patch = f, msg = "Day saved") => { setBusy(true); try { await update({ data: { id: task.id, ...patch } }); await onSaved(); toast.success(msg); } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); } };
   const add = () => { const t = draft.trim(); if (!t) return; setF({ ...f, checklist: [...f.checklist, { text: t, done: false }] }); setDraft(""); };
 
