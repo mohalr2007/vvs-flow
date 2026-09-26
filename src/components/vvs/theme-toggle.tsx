@@ -17,7 +17,6 @@ export function ThemeToggle({ inverted = false }: { inverted?: boolean }) {
   const toggleTheme = () => {
     const next = currentTheme() === "dark" ? "light" : "dark";
     document.documentElement.classList.toggle("dark", next === "dark");
-    document.documentElement.style.colorScheme = next;
     window.localStorage.setItem("vvs-theme", next);
     setTheme(next);
   };
