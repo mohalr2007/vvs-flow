@@ -84,10 +84,10 @@ button, a, input, textarea, select { outline-offset: 3px; }
 .bg-background, .bg-card, .bg-popover, .bg-secondary, .bg-muted, .bg-accent { transition-property: background-color, border-color, color, box-shadow; transition-duration: .3s; transition-timing-function: ease; }
 
 @supports (animation-timeline: view()) {
-  main section, main [data-reveal] {
+  main > section, [data-reveal] {
     animation: reveal-on-scroll linear both;
     animation-timeline: view();
-    animation-range: entry 0% cover 28%;
+    animation-range: entry 0% entry 80%;
   }
 }
 
@@ -98,5 +98,5 @@ button, a, input, textarea, select { outline-offset: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
-  main section, main [data-reveal] { animation: none !important; opacity: 1; transform: none; }
+  main > section, [data-reveal] { animation: none !important; opacity: 1; transform: none; }
 }
