@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { demoOwnerLogin } from "@/lib/owner.functions";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Owner sign in — VVS Flow" }, { name: "description", content: "Secure owner access for the Ekström VVS operations workspace." }, { property: "og:title", content: "Owner sign in — VVS Flow" }, { property: "og:description", content: "Ekström VVS operations workspace." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
@@ -22,6 +23,20 @@ function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  async function demoLogin() {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const creds = await demoOwnerLogin();
+      const { error } = await supabase.auth.signInWithPassword({ email: creds.email, password: creds.password });
+      setBusy(false);
+      if (error) return setError(error.message);
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      setBusy(false);
+      setError(err instanceof Error ? err.message : "Demo login failed.");
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setError(""); setNotice("");
