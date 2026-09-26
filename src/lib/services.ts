@@ -1,17 +1,15 @@
-import { jobs, leads, projects, waitlist } from "./vvs-data";
+// Backend-agnostic service layer. UI code imports from here; implementations are
+// server functions backed by Lovable Cloud and can be swapped without UI changes.
+import * as pub from "./public.functions";
+import * as own from "./owner.functions";
 
-const delay = (ms = 450) => new Promise((resolve) => setTimeout(resolve, ms));
-
-export const bookingService = {
-  async understandRequest(message: string) {
-    await delay();
-    return { title: message.toLowerCase().includes("toilet") ? "Toilet leak" : "Kitchen sink leak", urgency: "High", duration: "60–120 min" };
-  },
-  async findEmergencyAvailability() { await delay(); return { eta: "14:20–14:45", note: "Based on current workload and travel zone." }; },
-};
-export const jobService = { async list() { await delay(); return jobs; } };
-export const waitlistService = { async list() { await delay(); return waitlist; } };
-export const leadService = { async list() { await delay(); return leads; } };
-export const projectService = { async list() { await delay(); return projects; } };
-export const fileService = { async prepareUpload(file: File) { await delay(200); return { name: file.name, status: "demo-only" as const }; } };
-export const aiService = { async extract(message: string) { return bookingService.understandRequest(message); } };
+export const bookingService = { understand: pub.understandRequest, slots: pub.getAvailableSlots, create: pub.createBooking, byToken: pub.getBookingByToken, confirmAccess: pub.confirmAccess, rescheduleOptions: pub.getRescheduleOptions, reschedule: pub.rescheduleBooking };
+export const offerService = { get: pub.getOffer, respond: pub.respondOffer };
+export const fileService = { createUpload: pub.createPhotoUpload };
+export const aiService = { understand: pub.understandRequest, inbox: own.understandInbox };
+export const ownerService = { status: own.getOwnerStatus, claim: own.claimOwnership, overview: own.getOverview, settings: own.getSettings, saveSettings: own.saveSettings, reset: own.resetDemo, advance: own.advanceClock };
+export const jobService = { list: own.listJobs, get: own.getJob, save: own.saveJob, approve: own.approveJob, schedule: own.scheduleJob, setStatus: own.setJobStatus, calendar: own.getCalendar, fromInbox: own.createJobFromInbox };
+export const waitlistService = { get: own.getWaitlist, match: own.findMatches, sendOffer: own.sendOffer };
+export const leadService = { list: own.listLeads, setStage: own.setLeadStage };
+export const projectService = { list: own.listProjects, advance: own.advanceProject };
+export const rotService = { list: own.listRot, setStatus: own.setRotStatus };

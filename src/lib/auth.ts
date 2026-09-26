@@ -1,17 +1,15 @@
-export type OwnerSession = {
-  authenticated: boolean;
-  mode: "frontend-demo";
-  owner: { name: string; initials: string; business: string };
-};
+import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
-export interface OwnerAuthService {
-  getSession(): OwnerSession;
+export function useAuthUser() {
+  const [user, setUser] = useState<User | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
+    return () => data.subscription.unsubscribe();
+  }, []);
+  return user;
 }
 
-export const ownerAuthService: OwnerAuthService = {
-  getSession: () => ({
-    authenticated: true,
-    mode: "frontend-demo",
-    owner: { name: "Mats Ekström", initials: "ME", business: "Ekström VVS" },
-  }),
-};
+export const initials = (name: string) => name.split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
