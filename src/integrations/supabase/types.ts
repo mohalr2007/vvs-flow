@@ -45,6 +45,7 @@ export type Database = {
           customer_name: string
           description: string
           duration_min: number
+          email: string
           id: string
           is_emergency: boolean
           missing_fields: string[]
@@ -68,6 +69,7 @@ export type Database = {
           customer_name: string
           description?: string
           duration_min?: number
+          email?: string
           id?: string
           is_emergency?: boolean
           missing_fields?: string[]
@@ -91,6 +93,7 @@ export type Database = {
           customer_name?: string
           description?: string
           duration_min?: number
+          email?: string
           id?: string
           is_emergency?: boolean
           missing_fields?: string[]
@@ -248,6 +251,7 @@ export type Database = {
           created_at: string
           customer_name: string
           description: string
+          email: string
           id: string
           phone: string
           planned_days: number
@@ -264,6 +268,7 @@ export type Database = {
           created_at?: string
           customer_name: string
           description?: string
+          email?: string
           id?: string
           phone?: string
           planned_days?: number
@@ -280,6 +285,7 @@ export type Database = {
           created_at?: string
           customer_name?: string
           description?: string
+          email?: string
           id?: string
           phone?: string
           planned_days?: number
@@ -384,6 +390,7 @@ export type Database = {
           created_at: string
           customer_name: string
           duration_min: number
+          email: string
           flexibility: string
           id: string
           phone: string
@@ -397,6 +404,7 @@ export type Database = {
           created_at?: string
           customer_name: string
           duration_min?: number
+          email?: string
           flexibility?: string
           id?: string
           phone?: string
@@ -410,6 +418,7 @@ export type Database = {
           created_at?: string
           customer_name?: string
           duration_min?: number
+          email?: string
           flexibility?: string
           id?: string
           phone?: string
