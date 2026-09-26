@@ -23,10 +23,10 @@ async function expireOffers(db: Ctx["supabase"], now: Date) {
     await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", o.waitlist_id);
   }
 }
-const owner = () => createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]);
+const owner = () => createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]); // kept for type reuse; exports must use the direct chain below
 const id = z.object({ id: z.string().uuid() });
 
-export const getOwnerStatus = owner().handler(async ({ context }) => {
+export const getOwnerStatus = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { data } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "owner" });
   if (data) return { isOwner: true, claimable: false };
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -34,7 +34,7 @@ export const getOwnerStatus = owner().handler(async ({ context }) => {
   return { isOwner: false, claimable: (count ?? 0) === 0 };
 });
 
-export const claimOwnership = owner().handler(async ({ context }) => {
+export const claimOwnership = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { count } = await supabaseAdmin.from("user_roles").select("id", { count: "exact", head: true }).eq("role", "owner");
   if ((count ?? 0) > 0) throw new Error("This workspace already has an owner.");
@@ -60,7 +60,7 @@ export const demoOwnerLogin = createServerFn({ method: "POST" }).handler(async (
   return { email: DEMO_EMAIL, password: DEMO_PASSWORD };
 });
 
-export const getOverview = owner().handler(async ({ context }) => {
+export const getOverview = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { db, now, settings } = await guard(context);
   await expireOffers(db, now);
   const [{ data: jobs }, { data: projects }, { data: leads }, { data: offers }] = await Promise.all([
@@ -91,14 +91,14 @@ export const getOverview = owner().handler(async ({ context }) => {
   };
 });
 
-export const listJobs = owner().handler(async ({ context }) => {
+export const listJobs = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { db } = await guard(context);
   const { data, error } = await db.from("jobs").select("*").order("created_at", { ascending: false });
   if (error) throw new Error("Jobs could not be loaded.");
   return data;
 });
 
-export const getJob = owner().inputValidator((d) => id.parse(d)).handler(async ({ context, data }) => {
+export const getJob = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   const { data: job } = await db.from("jobs").select("*").eq("id", data.id).maybeSingle();
   let photoUrl: string | null = null;
@@ -108,14 +108,14 @@ export const getJob = owner().inputValidator((d) => id.parse(d)).handler(async (
 
 const jobEdit = z.object({ title: z.string().min(1).max(120), urgency: z.enum(["Low", "Normal", "High", "Emergency"]), duration_min: z.number().int().min(15).max(480), zone: z.string().max(10), value: z.number().int().min(0).max(10000000), description: z.string().max(2000), site_visit: z.boolean() });
 
-export const saveJob = owner().inputValidator((d) => id.extend({ fields: jobEdit }).parse(d)).handler(async ({ context, data }) => {
+export const saveJob = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ fields: jobEdit }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   const { error } = await db.from("jobs").update(data.fields).eq("id", data.id);
   if (error) throw new Error("Changes could not be saved.");
   return { ok: true };
 });
 
-export const approveJob = owner().inputValidator((d) => id.extend({ fields: jobEdit }).parse(d)).handler(async ({ context, data }) => {
+export const approveJob = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ fields: jobEdit }).parse(d)).handler(async ({ context, data }) => {
   const { db, now, settings } = await guard(context);
   const { error } = await db.from("jobs").update({ ...data.fields, status: "qualified", missing_fields: [] }).eq("id", data.id);
   if (error) throw new Error("Approval could not be saved.");
@@ -123,14 +123,14 @@ export const approveJob = owner().inputValidator((d) => id.extend({ fields: jobE
   return { groups: findSlots({ jobs: jobs ?? [], now, duration: data.fields.duration_min, zone: data.fields.zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour }) };
 });
 
-export const scheduleJob = owner().inputValidator((d) => id.extend({ slotStart: z.string().datetime() }).parse(d)).handler(async ({ context, data }) => {
+export const scheduleJob = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ slotStart: z.string().datetime() }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   const { error } = await db.from("jobs").update({ scheduled_at: data.slotStart, status: "confirmed" }).eq("id", data.id);
   if (error) throw new Error("The appointment could not be scheduled.");
   return { ok: true };
 });
 
-export const setJobStatus = owner().inputValidator((d) => id.extend({ status: z.enum(["cancelled", "in_progress", "completed", "waitlisted", "held"]) }).parse(d)).handler(async ({ context, data }) => {
+export const setJobStatus = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ status: z.enum(["cancelled", "in_progress", "completed", "waitlisted", "held"]) }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   const { data: job } = await db.from("jobs").select("*").eq("id", data.id).single();
   if (!job) throw new Error("Job not found.");
@@ -140,14 +140,14 @@ export const setJobStatus = owner().inputValidator((d) => id.extend({ status: z.
   return { ok: true };
 });
 
-export const getCalendar = owner().inputValidator((d) => z.object({ offsetDays: z.number().int().min(-60).max(60) }).parse(d)).handler(async ({ context, data }) => {
+export const getCalendar = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ offsetDays: z.number().int().min(-60).max(60) }).parse(d)).handler(async ({ context, data }) => {
   const { db, now } = await guard(context);
   const from = startOfStockholmDay(now, data.offsetDays), to = startOfStockholmDay(now, data.offsetDays + 7);
   const { data: jobs } = await db.from("jobs").select("id,title,customer_name,zone,status,scheduled_at,duration_min").gte("scheduled_at", from.toISOString()).lt("scheduled_at", to.toISOString()).neq("status", "expired");
   return { from: from.toISOString(), now: now.toISOString(), jobs: jobs ?? [] };
 });
 
-export const getWaitlist = owner().handler(async ({ context }) => {
+export const getWaitlist = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { db, now } = await guard(context);
   await expireOffers(db, now);
   const [{ data: entries }, { data: slots }, { data: offers }] = await Promise.all([
@@ -160,7 +160,7 @@ export const getWaitlist = owner().handler(async ({ context }) => {
   return { entries: entries ?? [], slots: (slots ?? []).filter((s) => !recovered.has(s.id)), offers: withTime };
 });
 
-export const findMatches = owner().inputValidator((d) => id.parse(d)).handler(async ({ context, data }) => {
+export const findMatches = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.parse(d)).handler(async ({ context, data }) => {
   const { db, now } = await guard(context);
   const { data: slot } = await db.from("jobs").select("zone,duration_min").eq("id", data.id).single();
   if (!slot) throw new Error("Slot not found.");
@@ -168,7 +168,7 @@ export const findMatches = owner().inputValidator((d) => id.parse(d)).handler(as
   return (entries ?? []).map((e) => ({ entry: e, ...scoreMatch(e, slot, now) })).sort((a, b) => b.score - a.score);
 });
 
-export const sendOffer = owner().inputValidator((d) => z.object({ jobId: z.string().uuid(), waitlistId: z.string().uuid() }).parse(d)).handler(async ({ context, data }) => {
+export const sendOffer = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ jobId: z.string().uuid(), waitlistId: z.string().uuid() }).parse(d)).handler(async ({ context, data }) => {
   const { db, now } = await guard(context);
   const { data: slot } = await db.from("jobs").select("zone,duration_min,scheduled_at").eq("id", data.jobId).single();
   const { data: entry } = await db.from("waitlist_entries").select("*").eq("id", data.waitlistId).eq("status", "waiting").single();
@@ -182,22 +182,22 @@ export const sendOffer = owner().inputValidator((d) => z.object({ jobId: z.strin
   return { token: offer.token, secondsLeft: 900 };
 });
 
-export const listLeads = owner().handler(async ({ context }) => {
+export const listLeads = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { db } = await guard(context);
   return (await db.from("leads").select("*").order("created_at", { ascending: false })).data ?? [];
 });
-export const setLeadStage = owner().inputValidator((d) => id.extend({ stage: z.enum(["New", "Qualified", "Held", "Abandoned", "Converted"]) }).parse(d)).handler(async ({ context, data }) => {
+export const setLeadStage = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ stage: z.enum(["New", "Qualified", "Held", "Abandoned", "Converted"]) }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   await db.from("leads").update({ stage: data.stage }).eq("id", data.id);
   return { ok: true };
 });
 
 const PROJECT_FLOW = ["project_request", "site_visit_requested", "site_visit_scheduled", "owner_review", "project_approved", "scheduled", "in_progress", "completed"] as const;
-export const listProjects = owner().handler(async ({ context }) => {
+export const listProjects = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { db } = await guard(context);
   return (await db.from("projects").select("*").order("created_at", { ascending: false })).data ?? [];
 });
-export const advanceProject = owner().inputValidator((d) => id.parse(d)).handler(async ({ context, data }) => {
+export const advanceProject = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   const { data: p } = await db.from("projects").select("status").eq("id", data.id).single();
   const i = PROJECT_FLOW.indexOf(p!.status);
@@ -206,32 +206,32 @@ export const advanceProject = owner().inputValidator((d) => id.parse(d)).handler
   return { status: next };
 });
 
-export const understandInbox = owner().inputValidator((d) => z.object({ text: z.string().trim().min(1).max(2000) }).parse(d)).handler(async ({ context, data }) => {
+export const understandInbox = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ text: z.string().trim().min(1).max(2000) }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   const { extractRequest } = await import("./ai.server");
   const res = await extractRequest(data.text, "message");
   if ("data" in res) await db.from("inbox_messages").insert({ body: data.text, result: res.data });
   return res;
 });
-export const createJobFromInbox = owner().inputValidator((d) => z.object({ text: z.string().max(2000), title: z.string().max(120), urgency: z.string().max(20), duration_min: z.number().int(), value: z.number().int(), confidence: z.number().int(), location: z.string().max(120).nullable(), missing: z.array(z.string()) }).parse(d)).handler(async ({ context, data }) => {
+export const createJobFromInbox = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ text: z.string().max(2000), title: z.string().max(120), urgency: z.string().max(20), duration_min: z.number().int(), value: z.number().int(), confidence: z.number().int(), location: z.string().max(120).nullable(), missing: z.array(z.string()) }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   const { data: job, error } = await db.from("jobs").insert({ customer_name: "Inbox customer", title: data.title, description: data.text, urgency: data.urgency, duration_min: data.duration_min, value: data.value, confidence: data.confidence, address: data.location ?? "", missing_fields: data.missing, status: data.confidence < 60 ? "needs_assessment" : "new" }).select("id").single();
   if (error) throw new Error("Job could not be created.");
   return { id: job.id };
 });
 
-export const listRot = owner().handler(async ({ context }) => {
+export const listRot = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { db } = await guard(context);
   return (await db.from("rot_records").select("*").order("created_at", { ascending: false })).data ?? [];
 });
-export const setRotStatus = owner().inputValidator((d) => id.extend({ status: z.enum(["Ready", "Review", "Exported"]) }).parse(d)).handler(async ({ context, data }) => {
+export const setRotStatus = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ status: z.enum(["Ready", "Review", "Exported"]) }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   await db.from("rot_records").update({ status: data.status }).eq("id", data.id);
   return { ok: true };
 });
 
-export const getSettings = owner().handler(async ({ context }) => (await guard(context)).settings);
-export const saveSettings = owner().inputValidator((d) => z.object({ business_name: z.string().min(1).max(80), owner_name: z.string().min(1).max(80), service_area: z.string().max(80), emergency_buffer_min: z.number().int().min(0).max(480), work_start_hour: z.number().int().min(0).max(23), work_end_hour: z.number().int().min(1).max(24), hourly_rate: z.number().int().min(0).max(10000) }).parse(d)).handler(async ({ context, data }) => {
+export const getSettings = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => (await guard(context)).settings);
+export const saveSettings = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ business_name: z.string().min(1).max(80), owner_name: z.string().min(1).max(80), service_area: z.string().max(80), emergency_buffer_min: z.number().int().min(0).max(480), work_start_hour: z.number().int().min(0).max(23), work_end_hour: z.number().int().min(1).max(24), hourly_rate: z.number().int().min(0).max(10000) }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   if (data.work_end_hour <= data.work_start_hour) throw new Error("Working day must end after it starts.");
   const { error } = await db.from("settings").update(data).eq("id", 1);
@@ -239,13 +239,13 @@ export const saveSettings = owner().inputValidator((d) => z.object({ business_na
   return { ok: true };
 });
 
-export const resetDemo = owner().handler(async ({ context }) => {
+export const resetDemo = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   await guard(context);
   const { error } = await context.supabase.rpc("reset_demo");
   if (error) throw new Error("Demo reset failed.");
   return { ok: true };
 });
-export const advanceClock = owner().inputValidator((d) => z.object({ minutes: z.union([z.literal(15), z.literal(1440)]) }).parse(d)).handler(async ({ context, data }) => {
+export const advanceClock = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ minutes: z.union([z.literal(15), z.literal(1440)]) }).parse(d)).handler(async ({ context, data }) => {
   const { db, settings } = await guard(context);
   await db.from("settings").update({ clock_offset_minutes: settings.clock_offset_minutes + data.minutes }).eq("id", 1);
   return { ok: true };
