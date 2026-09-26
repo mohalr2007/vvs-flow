@@ -26,7 +26,7 @@ Structure a customer's plumbing request. Rules:
 - duration_min: realistic on-site minutes, multiple of 15 (30–480).
 - price_low/price_high: estimated SEK incl. VAT labour+basic parts (hourly 850 SEK). For renovations give site-visit 0/0.
 - confidence: 0–100, how clearly the request maps to a known plumbing job. Unusual/vague requests must be below 60.
-- needs_site_visit: true for renovations, installations or unclear problems.
+- needs_site_visit: true ONLY for renovations, new installations, or problems whose cause cannot be identified from the text. Ordinary leaks, taps, toilets, drains, radiators are false.
 - location_hint: area or address mentioned, else null.
 - missing_fields: up to 3 short items still needed (e.g. "Exact address", "Photo of the leak"). Never ask for things already given.`;
 
