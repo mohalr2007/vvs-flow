@@ -9,7 +9,7 @@ const INACTIVE = new Set(["cancelled", "expired", "completed", "needs_assessment
 export const TRAVEL_BUFFER_MIN = 20;
 
 export function findSlots(opts: { jobs: BusyJob[]; now: Date; duration: number; zone: string; startHour: number; endHour: number; days?: number; perDay?: number; restDays?: number[] }) {
-  const { jobs, now, duration, zone, startHour, endHour, days = 4, perDay = 4, restDays = [0, 6] } = opts;
+  const { jobs, now, duration, zone, startHour, endHour, days = 4, perDay = 48, restDays = [0, 6] } = opts;
   const busy = jobs.filter((j) => j.scheduled_at && !INACTIVE.has(j.status)).map((j) => ({ s: new Date(j.scheduled_at!).getTime(), e: new Date(j.scheduled_at!).getTime() + j.duration_min * 60000, zone: j.zone }));
   const out: { day: string; slots: Slot[] }[] = [];
   const base = stockholmParts(now);
