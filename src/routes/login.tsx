@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { demoOwnerLogin } from "@/lib/owner.functions";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Owner sign in — VVS Flow" }, { name: "description", content: "Secure owner access for the Ekström VVS operations workspace." }, { property: "og:title", content: "Owner sign in — VVS Flow" }, { property: "og:description", content: "Ekström VVS operations workspace." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
@@ -22,6 +23,20 @@ function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  async function demoLogin() {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const creds = await demoOwnerLogin();
+      const { error } = await supabase.auth.signInWithPassword({ email: creds.email, password: creds.password });
+      setBusy(false);
+      if (error) return setError(error.message);
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      setBusy(false);
+      setError(err instanceof Error ? err.message : "Demo login failed.");
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setError(""); setNotice("");
@@ -45,6 +60,11 @@ function Login() {
       <form onSubmit={submit} className="mt-8 space-y-4"><div><Label htmlFor="email">Email</Label><Input id="email" type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-2 h-12"/></div><div><Label htmlFor="password">Password</Label><Input id="password" type="password" required minLength={8} autoComplete={mode === "signin" ? "current-password" : "new-password"} value={password} onChange={e => setPassword(e.target.value)} className="mt-2 h-12"/></div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}{notice && <p role="status" className="rounded-md bg-success/10 p-3 text-sm text-success">{notice}</p>}
         <Button type="submit" className="w-full" size="lg" disabled={busy}>{busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}<ArrowRight/></Button></form>
+      {/* DEV ONLY — remove before launch */}
+      <div className="mt-6 rounded-md border border-dashed border-amber-500/50 bg-amber-500/5 p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">Dev mode — demo access</p>
+        <Button type="button" variant="outline" className="mt-3 w-full" size="lg" disabled={busy} onClick={demoLogin}>{busy ? "Please wait…" : "Enter dashboard instantly"}<ArrowRight/></Button>
+      </div>
       <button type="button" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(""); setNotice(""); }} className="mt-5 w-full text-center text-sm text-muted-foreground underline-offset-4 hover:underline">{mode === "signin" ? "First time? Create the owner account" : "Already have an account? Sign in"}</button>
     </Card></main></div>;
 }

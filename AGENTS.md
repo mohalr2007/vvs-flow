@@ -12,3 +12,5 @@
 - Do not use 3D visuals; use authentic trade photography and restrained interface motion for faster, more credible customer experiences.
 - Use a bright Scandinavian industrial system across customer and owner screens: crisp white surfaces, charcoal structure, muted blue accents, Urbanist headings, and Epilogue body text.
 - Use the root-level theme and motion layer for persistent appearance changes and route/scroll transitions, so every customer and owner page behaves consistently.
+
+- Server functions must use the direct `createServerFn({...}).middleware([...]).handler(...)` chain per export — a factory wrapper (e.g. `owner()`) defeats the TanStack server-fn transform, shipping real handlers to the client where they crash with undefined context.
