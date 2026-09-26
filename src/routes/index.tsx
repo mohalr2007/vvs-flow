@@ -79,16 +79,14 @@ function Home() {
         </div>
       </section>
 
-      <section className="relative isolate overflow-hidden border-b bg-owner px-5 py-16 text-owner-foreground lg:px-8 lg:py-20">
-        <img src={bathroomImage} alt="" aria-hidden="true" loading="lazy" width={1024} height={1024} className="absolute inset-0 -z-20 size-full object-cover object-center" />
-        <div className="absolute inset-0 -z-10 bg-owner/80" />
+      <section className="relative border-b bg-owner px-5 py-16 text-owner-foreground lg:px-8 lg:py-20">
         <div className="mx-auto grid max-w-7xl gap-8 sm:grid-cols-3 sm:divide-x sm:divide-owner-foreground/20">
           {trustPoints.map((point) => <Trust key={point.label} {...point} />)}
         </div>
       </section>
 
       <section className="relative isolate overflow-hidden bg-owner px-5 py-20 text-owner-foreground lg:px-8 lg:py-28">
-        <img src={inspectionImage} alt="" aria-hidden="true" loading="lazy" width={1408} height={912} className="absolute inset-0 -z-20 size-full object-cover object-[42%_center]" />
+        <img src={inspectionImage} alt="" aria-hidden="true" loading="lazy" width={1408} height={912} className="bg-reveal absolute inset-0 -z-20 size-full object-cover object-[42%_center]" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-owner via-owner/90 to-owner/65" />
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-12 lg:grid-cols-[.9fr_1.1fr] lg:items-start">
