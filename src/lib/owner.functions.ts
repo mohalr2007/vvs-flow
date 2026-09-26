@@ -181,7 +181,14 @@ export const sendOffer = createServerFn({ method: "POST" }).middleware([requireS
   const { data: offer, error } = await db.from("offers").insert({ waitlist_id: entry.id, source_job_id: data.jobId, slot_start: slot.scheduled_at, duration_min: slot.duration_min, expires_at: new Date(now.getTime() + 15 * 60000).toISOString(), score, breakdown }).select("token").single();
   if (error) throw new Error("The offer could not be created.");
   await db.from("waitlist_entries").update({ status: "offered" }).eq("id", entry.id);
-  return { token: offer.token, secondsLeft: 900 };
+  let emailed = false;
+  if (entry.email) {
+    const { sendEmail, offerEmail, offerUrl } = await import("./email.server");
+    const when = new Date(slot.scheduled_at).toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    const mail = offerEmail({ name: entry.customer_name, title: entry.title, when, offerUrl: offerUrl(offer.token) });
+    emailed = (await sendEmail(entry.email, mail.subject, mail.html).catch(() => ({ sent: false }))).sent;
+  }
+  return { token: offer.token, secondsLeft: 900, emailed };
 });
 
 export const listLeads = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
