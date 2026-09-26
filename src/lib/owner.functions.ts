@@ -280,7 +280,8 @@ export const updateProjectTask = createServerFn({ method: "POST" }).middleware([
     return { ok: true };
   }
   if (patch.start_hour !== undefined && patch.end_hour !== undefined && patch.end_hour <= patch.start_hour) throw new Error("End must be after start.");
-  const { error } = await db.from("project_tasks").update(patch).eq("id", taskId);
+  const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+  const { error } = await db.from("project_tasks").update(clean).eq("id", taskId);
   if (error) throw new Error(error.message);
   return { ok: true };
 });
