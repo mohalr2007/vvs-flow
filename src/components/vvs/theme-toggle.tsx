@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -14,11 +14,26 @@ export function ThemeToggle({ inverted = false }: { inverted?: boolean }) {
 
   useEffect(() => setTheme(currentTheme()), []);
 
-  const toggleTheme = () => {
+  const toggleTheme = (event: MouseEvent<HTMLButtonElement>) => {
     const next = currentTheme() === "dark" ? "light" : "dark";
-    document.documentElement.classList.toggle("dark", next === "dark");
-    window.localStorage.setItem("vvs-theme", next);
-    setTheme(next);
+    const applyTheme = () => {
+      document.documentElement.classList.toggle("dark", next === "dark");
+      window.localStorage.setItem("vvs-theme", next);
+      setTheme(next);
+    };
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const startViewTransition = document.startViewTransition?.bind(document);
+    if (!startViewTransition || reduceMotion) return applyTheme();
+
+    const { clientX: x, clientY: y } = event;
+    const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    const transition = startViewTransition(applyTheme);
+    void transition.ready.then(() => {
+      document.documentElement.animate(
+        { clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+        { duration: 420, easing: "cubic-bezier(.2,.75,.2,1)", pseudoElement: "::view-transition-new(root)" },
+      );
+    });
   };
 
   const label = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
@@ -33,7 +48,9 @@ export function ThemeToggle({ inverted = false }: { inverted?: boolean }) {
       title={label}
       className={inverted ? "text-owner-foreground hover:bg-owner-foreground/10 hover:text-owner-foreground" : undefined}
     >
-      {theme === "dark" ? <Sun /> : <Moon />}
+      <span key={theme} className="theme-icon-enter" aria-hidden="true">
+        {theme === "dark" ? <Sun /> : <Moon />}
+      </span>
     </Button>
   );
 }
