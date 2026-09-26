@@ -1,6 +1,6 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, Environment, Float, Lightformer, RoundedBox } from "@react-three/drei";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 type SceneMode = "flow" | "repair" | "project";
@@ -19,18 +19,19 @@ function Joint({ position, radius = 0.32 }: { position: [number, number, number]
   return <mesh position={position} castShadow><sphereGeometry args={[radius, 32, 20]}/><meshStandardMaterial color={copperLight} metalness={0.78} roughness={0.2}/></mesh>;
 }
 
-function Elbow({ position, rotation = [0,0,0] }: { position: [number,number,number]; rotation?: [number,number,number] }) {
-  return <mesh position={position} rotation={rotation} castShadow><torusGeometry args={[.62,.22,24,48,Math.PI/2]}/><meshPhysicalMaterial color={copperLight} metalness={.92} roughness={.12} clearcoat={1} clearcoatRoughness={.08}/></mesh>;
+function CurvedPipe({ points, radius=.22 }: { points: [number,number,number][]; radius?: number }) {
+  const curve=useMemo(()=>new THREE.CatmullRomCurve3(points.map(point=>new THREE.Vector3(...point)),false,"catmullrom",.18),[points]);
+  return <mesh castShadow receiveShadow><tubeGeometry args={[curve,96,radius,28,false]}/><meshPhysicalMaterial color={copper} metalness={.94} roughness={.13} clearcoat={1} clearcoatRoughness={.06}/></mesh>;
 }
 
 function PressureGauge() {
   const needle=useRef<THREE.Mesh>(null);
   useFrame((state)=>{if(needle.current) needle.current.rotation.z=-.42+Math.sin(state.clock.elapsedTime*.8)*.04});
-  return <group position={[-.2,1.72,.38]} rotation={[0,0,.06]}>
-    <mesh castShadow><cylinderGeometry args={[.55,.55,.18,48]}/><meshPhysicalMaterial color={navy} metalness={.72} roughness={.16} clearcoat={1}/></mesh>
-    <mesh position={[0,-.1,.1]} rotation={[Math.PI/2,0,0]}><circleGeometry args={[.43,48]}/><meshStandardMaterial color="#eaf3fb" roughness={.22}/></mesh>
-    <mesh ref={needle} position={[0,-.205,.17]} rotation={[Math.PI/2,0,-.42]}><boxGeometry args={[.035,.52,.035]}/><meshStandardMaterial color={water} emissive={water} emissiveIntensity={.25}/></mesh>
-    <mesh position={[0,-.22,.18]} rotation={[Math.PI/2,0,0]}><sphereGeometry args={[.07,20,16]}/><meshStandardMaterial color={navy}/></mesh>
+  return <group position={[-.1,1.28,.42]} rotation={[0,0,.04]}>
+    <mesh rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[.5,.5,.18,48]}/><meshPhysicalMaterial color={navy} metalness={.72} roughness={.16} clearcoat={1}/></mesh>
+    <mesh position={[0,0,.1]}><circleGeometry args={[.41,48]}/><meshStandardMaterial color="#eaf3fb" roughness={.22}/></mesh>
+    <mesh ref={needle} position={[0,.04,.17]} rotation={[0,0,-.42]}><boxGeometry args={[.035,.48,.035]}/><meshStandardMaterial color={water} emissive={water} emissiveIntensity={.25}/></mesh>
+    <mesh position={[0,0,.19]}><sphereGeometry args={[.065,20,16]}/><meshStandardMaterial color={navy}/></mesh>
   </group>;
 }
 
@@ -66,10 +67,8 @@ function PlumbingAssembly({ mode }: { mode: SceneMode }) {
     assembly.current.rotation.y += (target + Math.sin(state.clock.elapsedTime * .32) * .08 - assembly.current.rotation.y) * (1 - Math.exp(-2 * dt));
   });
   return <Float speed={.75} rotationIntensity={.045} floatIntensity={.14}><group ref={assembly} rotation={[-.05,-.08,-.03]}>
-    <Pipe position={[-1.35,-.05,0]} length={3.4} radius={.22}/><Elbow position={[-.73,1.65,0]} rotation={[0,0,Math.PI/2]}/>
-    <Pipe position={[.48,2.27,0]} rotation={[0,0,Math.PI/2]} length={2.42} radius={.22}/><Elbow position={[1.69,1.65,0]} rotation={[0,0,-Math.PI/2]}/>
-    <Pipe position={[2.31,.95,0]} length={1.4} radius={.22}/>
-    <Pipe position={[0,.15,0]} rotation={[0,0,Math.PI/2]} length={2.7} radius={.2}/>
+    <CurvedPipe points={[[-1.45,-2.3,0],[-1.45,1.65,0],[-.95,2.15,0],[1.55,2.15,0],[2.05,1.65,0],[2.05,.75,0]]}/>
+    <Pipe position={[.3,.15,0]} rotation={[0,0,Math.PI/2]} length={3.5} radius={.2}/>
     <Joint position={[0,.15,0]} radius={.28}/><Joint position={[1.35,.15,0]} radius={.25}/>
     <Pipe position={[0,-1.15,0]} length={2.6} radius={.18}/><Joint position={[0,-2.45,0]} radius={.24}/>
     <PressureGauge/>
