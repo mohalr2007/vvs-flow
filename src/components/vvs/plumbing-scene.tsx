@@ -5,10 +5,10 @@ import * as THREE from "three";
 
 type SceneMode = "flow" | "repair" | "project";
 
-const copper = "#a96335";
-const copperLight = "#d89a67";
-const water = "#3a91b5";
-const navy = "#183d52";
+const copper = "#a9b8c8";
+const copperLight = "#e7f2ff";
+const water = "#3b82f6";
+const navy = "#10233c";
 
 function Pipe({ position, rotation, length, radius = 0.24 }: { position: [number, number, number]; rotation?: [number, number, number]; length: number; radius?: number }) {
   const rotationProps = rotation ? { rotation } : {};
@@ -58,7 +58,7 @@ function PlumbingAssembly({ mode }: { mode: SceneMode }) {
     <Valve active={mode !== "repair"}/>
     <FlowBeads active={mode !== "repair"}/>
     {mode === "repair" && <group position={[-1.12,-.62,.35]}><mesh><sphereGeometry args={[.19,24,16]}/><meshStandardMaterial color={water} transparent opacity={.78} roughness={.05}/></mesh><mesh position={[.18,-.28,0]} scale={[.65,1,.65]}><sphereGeometry args={[.14,20,14]}/><meshStandardMaterial color={water} transparent opacity={.62}/></mesh></group>}
-    {mode === "project" && <RoundedBox args={[1.4,.72,.36]} radius={.12} position={[-.05,1.2,-.18]} castShadow><meshStandardMaterial color="#e6e0d5" metalness={.18} roughness={.42}/></RoundedBox>}
+    {mode === "project" && <RoundedBox args={[1.4,.72,.36]} radius={.12} position={[-.05,1.2,-.18]} castShadow><meshStandardMaterial color="#dbe8f5" metalness={.48} roughness={.28}/></RoundedBox>}
   </group></Float>;
 }
 
@@ -73,8 +73,8 @@ export function PlumbingScene({ mode = "flow", compact = false }: { mode?: Scene
     media.addEventListener("change",sync);
     return ()=>media.removeEventListener("change",sync);
   },[]);
-  return <div className={compact ? "relative h-48 w-full sm:h-60" : "relative h-[360px] w-full sm:h-[460px] lg:h-[560px]"} aria-label="Animated three-dimensional copper plumbing system">
-    <div className="absolute inset-x-[12%] bottom-[8%] h-1/3 rounded-full bg-copper/10 blur-3xl"/>
+  return <div className={compact ? "relative h-48 w-full sm:h-60" : "relative h-[360px] w-full sm:h-[500px] lg:h-[650px]"} aria-label="Animated three-dimensional chrome plumbing system">
+    <div className="absolute inset-x-[12%] bottom-[8%] h-1/3 rounded-full bg-primary/15 blur-3xl"/>
     {!mounted ? <div className="absolute inset-0 plumbing-fallback"/> : <Canvas shadows frameloop={reducedMotion ? "demand" : "always"} dpr={[1,1.5]} camera={{position:[0,1.2,7.8],fov:35}} gl={{antialias:true,alpha:true}} style={{background:"transparent"}}>
       <Suspense fallback={null}>
         <ambientLight intensity={.75}/><directionalLight position={[4,7,6]} intensity={2.2} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}/><pointLight position={[-4,-1,4]} intensity={1.3} color={water}/>
