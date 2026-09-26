@@ -191,6 +191,50 @@ export type Database = {
           },
         ]
       }
+      project_tasks: {
+        Row: {
+          created_at: string
+          done: boolean
+          end_hour: number
+          id: string
+          notes: string
+          project_id: string
+          start_hour: number
+          title: string
+          work_date: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          end_hour?: number
+          id?: string
+          notes?: string
+          project_id: string
+          start_hour?: number
+          title: string
+          work_date: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          end_hour?: number
+          id?: string
+          notes?: string
+          project_id?: string
+          start_hour?: number
+          title?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           address: string
