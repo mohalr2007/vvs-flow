@@ -66,7 +66,10 @@ function Book() {
       const photoPath = photo ? await uploadPhoto(photo) : null;
       const r = await create({ data: { kind: isProject ? "project" : "repair", ...contact, description: message, title: ai?.title ?? null, urgency: ai?.urgency ?? null, duration_min: ai?.duration_min ?? null, price_high: ai?.price_high ?? null, confidence: ai?.confidence ?? null, missing_fields: ai?.missing_fields ?? null, slotStart: skipTime ? null : slot, photoPath } });
       setDone(r);
-    } catch (e) { setError(errMsg(e)); } finally { setBusy(false); }
+    } catch (e) {
+      setError(errMsg(e));
+      if (!skipTime) { setStep(3); void loadSlots(); }
+    } finally { setBusy(false); }
   }
   function next() {
     if (step === 0 && leaking) { navigate({ to: "/emergency" }); return; }

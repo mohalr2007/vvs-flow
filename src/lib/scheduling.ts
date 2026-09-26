@@ -4,7 +4,8 @@ import { stockholmDate, stockholmParts } from "./time";
 export type BusyJob = { scheduled_at: string | null; duration_min: number; zone: string; status: string };
 export type Slot = { start: string; travel: string };
 
-const INACTIVE = new Set(["cancelled", "expired", "completed", "needs_assessment", "new", "qualified", "waitlisted"]);
+// Any scheduled job blocks its time, whatever its stage — only dead statuses free the slot.
+const INACTIVE = new Set(["cancelled", "expired", "completed", "needs_assessment", "waitlisted"]);
 export const TRAVEL_BUFFER_MIN = 20;
 
 export function findSlots(opts: { jobs: BusyJob[]; now: Date; duration: number; zone: string; startHour: number; endHour: number; days?: number; perDay?: number; restDays?: number[] }) {
