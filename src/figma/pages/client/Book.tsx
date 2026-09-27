@@ -6,6 +6,7 @@ import { useServerFn } from '@tanstack/react-start';
 import { toast } from 'sonner';
 import ClientNav from '@/figma/components/ClientNav';
 import { bookingService } from '@/lib/services';
+import { LocationPicker, type PickedLocation } from '@/figma/components/LocationPicker';
 import { uploadPhoto } from '@/lib/upload';
 import type { SlotGroup } from '@/lib/vvs-data';
 import { fmtDay, fmtRange, fmtTime, sek } from '@/lib/time';
@@ -67,6 +68,7 @@ export default function Book() {
   const [aiError, setAiError] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [form, setForm] = useState({ name: '', address: '', phone: '', email: '' });
+  const [loc, setLoc] = useState<PickedLocation>({ address: '', lat: null, lng: null, inside: null, driveMinutes: null });
   const [photo, setPhoto] = useState<File | null>(null);
   const [groups, setGroups] = useState<SlotGroup[] | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
