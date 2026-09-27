@@ -41,7 +41,7 @@ function ProjectDetail() {
   const [month, setMonth] = useState<Date | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
 
-  return <div className="space-y-6">
+  return <div className="mx-auto max-w-5xl space-y-6 animate-fade-up">
     <Button variant="ghost" size="sm" asChild><Link to="/dashboard/projects"><ArrowLeft/>All projects</Link></Button>
     <QueryState q={q}>{({ project: p, tasks, restDays = [0, 6], workStart = 8, workEnd = 17 }) => {
       const planned = tasks.length > 0;
@@ -60,17 +60,17 @@ function ProjectDetail() {
       const restLabel = restDays.length ? [1, 2, 3, 4, 5, 6, 0].filter(d => restDays.includes(d)).map(d => DAY[d]).join(", ") : "none";
 
       return <>
-        <PageHeader title={p.title} description={`${p.customer_name} · ${p.ref} · Budget ${p.budget}`} action={<StatusBadge tone={p.status === "completed" || p.status === "project_approved" ? "success" : p.status === "owner_review" ? "warning" : "info"}>{statusLabel(p.status)}</StatusBadge>}/>
+        <PageHeader eyebrow={p.ref} title={p.title} description={`${p.customer_name} · ${p.address ?? "Address pending"}`} action={<div className="text-right"><p className="font-display text-2xl font-light text-primary">{p.budget}</p><StatusBadge tone={p.status === "completed" || p.status === "project_approved" ? "success" : p.status === "owner_review" ? "warning" : "info"}>{statusLabel(p.status)}</StatusBadge></div>}/>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
           <div className="space-y-6">
-            <Card className="rounded-md p-5 shadow-none"><h2 className="font-bold">Project details</h2>
+            <Card className="rounded-2xl p-5 shadow-none"><h2 className="font-display text-lg font-normal">Project details</h2>
               <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">{p.phone && <a href={`tel:${p.phone}`} className="flex items-center gap-2"><Phone className="size-4 text-muted-foreground"/>{p.phone}</a>}{p.address && <span className="flex items-center gap-2"><MapPin className="size-4 text-muted-foreground"/>{p.address}</span>}</div>
               {p.description && <p className="mt-4 whitespace-pre-wrap text-sm">{p.description}</p>}
-              <h3 className="mt-6 text-sm font-semibold">Workflow stage</h3>
-              <div className="mt-3 flex flex-wrap gap-2">{PROJECT_STEPS.map((s, k) => <button key={s} onClick={() => run(() => setStatus({ data: { id: p.id, status: s as ProjectStatus } }))} className={cn("rounded-full border px-3 py-1.5 text-xs font-medium transition-colors", s === p.status ? "border-copper bg-copper text-background" : k < PROJECT_STEPS.indexOf(p.status) ? "border-copper/40 bg-copper/10" : "hover:bg-muted")}>{statusLabel(s)}</button>)}</div>
+              <h3 className="figma-label mt-6 text-[10px] text-muted-foreground">Workflow stage</h3>
+              <div className="mt-3 flex min-w-max items-start overflow-x-auto">{PROJECT_STEPS.map((s, k) => { const active = s === p.status; const done = k < PROJECT_STEPS.indexOf(p.status); return <div key={s} className="flex items-center"><Button size="icon" variant={done || active ? "default" : "outline"} onClick={() => run(() => setStatus({ data: { id: p.id, status: s as ProjectStatus } }))} className="size-8 rounded-full text-xs">{done ? <Check className="size-4"/> : k + 1}</Button>{k < PROJECT_STEPS.length - 1 && <span className={cn("mx-1 h-0.5 w-5", done ? "bg-primary" : "bg-border")}/>}</div>; })}</div>
             </Card>
 
-            <Card className="rounded-md p-5 shadow-none">
+            <Card className="rounded-2xl p-5 shadow-none">
               <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">Site calendar</h2><p className="text-sm text-muted-foreground">{planned ? `${base} planned day${base === 1 ? "" : "s"}${extra ? ` + ${extra} delay` : ""} · ${doneCount}/${tasks.length} done · ${fmtDate(p.start_date!)} → ${fmtDate(last!)}` : "Not planned yet"}</p></div>
                 <div className="flex items-center gap-2"><Button size="icon" variant="outline" aria-label="Previous month" onClick={() => setMonth(new Date(m.getFullYear(), m.getMonth() - 1, 1))}><ChevronLeft/></Button><span className="min-w-32 text-center text-sm font-semibold">{m.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</span><Button size="icon" variant="outline" aria-label="Next month" onClick={() => setMonth(new Date(m.getFullYear(), m.getMonth() + 1, 1))}><ChevronRight/></Button></div></div>
               <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground">{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => <span key={d}>{d}</span>)}</div>

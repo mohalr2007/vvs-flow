@@ -2,10 +2,12 @@ import { createFileRoute, Outlet, useMatch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { Search } from "lucide-react";
 import { PageHeader, EmptyState } from "@/components/vvs/primitives";
 import { JobCard } from "@/components/vvs/owner-ui";
 import { QueryState } from "@/components/vvs/query-state";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { jobService } from "@/lib/services";
 
 export const Route = createFileRoute("/dashboard/jobs")({
@@ -25,7 +27,8 @@ function Jobs() {
   const list = useServerFn(jobService.list);
   const q = useQuery({ queryKey: ["jobs"], queryFn: () => list() });
   const [f, setF] = useState<keyof typeof filters>("All");
-  return <div className="space-y-6"><PageHeader title="Jobs" description="Review incoming requests and keep every job moving."/>
-    <div className="flex gap-2 overflow-x-auto pb-1">{(Object.keys(filters) as (keyof typeof filters)[]).map(k => <Button key={k} size="sm" variant={f === k ? "default" : "outline"} onClick={() => setF(k)}>{k}</Button>)}</div>
-    <QueryState q={q}>{(jobs) => { const shown = jobs.filter(j => filters[f](j.status)); return shown.length ? <div className="grid gap-3 lg:grid-cols-2">{shown.map(j => <JobCard job={j} key={j.id}/>)}</div> : <EmptyState title="No jobs here" description="New customer requests will appear automatically."/>; }}</QueryState></div>;
+  const [search, setSearch] = useState("");
+  return <div className="mx-auto max-w-5xl space-y-7 animate-fade-up"><PageHeader title="Jobs" description="Review incoming requests and keep every job moving."/>
+    <div className="flex flex-col gap-3 sm:flex-row"><label className="relative block sm:w-72"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by client or type…" className="pl-9"/><span className="sr-only">Search jobs</span></label><div className="flex gap-2 overflow-x-auto pb-1">{(Object.keys(filters) as (keyof typeof filters)[]).map(k => <Button key={k} size="sm" variant={f === k ? "default" : "outline"} className="rounded-lg" onClick={() => setF(k)}>{k}</Button>)}</div></div>
+    <QueryState q={q}>{(jobs) => { const term = search.trim().toLowerCase(); const shown = jobs.filter(j => filters[f](j.status) && (!term || j.customer_name.toLowerCase().includes(term) || j.title.toLowerCase().includes(term) || j.ref.toLowerCase().includes(term))); return shown.length ? <div className="flex flex-col gap-2">{shown.map(j => <JobCard job={j} key={j.id}/>)}</div> : <EmptyState title="No jobs match" description="Try another search or filter."/>; }}</QueryState></div>;
 }
