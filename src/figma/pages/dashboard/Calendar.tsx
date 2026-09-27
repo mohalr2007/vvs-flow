@@ -186,7 +186,7 @@ export default function CalendarPage() {
                             to="/dashboard/projects/$projectId"
                             params={{ projectId: task.project_id }}
                             className={cn(
-                              "group absolute overflow-hidden rounded-lg border border-border/70 bg-card/90 p-2.5 pl-4 text-xs shadow-sm backdrop-blur-sm transition-all hover:z-10 hover:border-copper/60 hover:bg-card hover:shadow-md",
+                              "group absolute z-[5] overflow-hidden rounded-lg border-2 border-copper/70 bg-copper/20 p-2 pl-4 text-xs shadow-md transition-all hover:z-10 hover:border-copper hover:bg-copper/30",
                               task.done && "opacity-60",
                             )}
                             style={{
@@ -196,11 +196,11 @@ export default function CalendarPage() {
                               height: Math.min(68, Math.max(52, (end - start) * ROW - 4)),
                             }}
                           >
-                            <span className="absolute bottom-2 left-1 top-2 w-1 rounded-full bg-copper" />
-                            <p className="truncate font-bold text-foreground">{task.title}</p>
-                            <p className="mt-0.5 truncate text-muted-foreground">{task.projects?.customer_name}</p>
-                            <p className="mt-1 flex items-center gap-1 truncate font-mono text-[9px] text-copper">
-                              <Clock3 className="size-2.5" />
+                            <span className="absolute bottom-1.5 left-1 top-1.5 w-1.5 rounded-full bg-copper" />
+                            <p className="truncate font-bold text-foreground" title={task.title}>{task.title}</p>
+                            <p className="mt-0.5 truncate font-medium text-foreground/80">{task.projects?.customer_name}</p>
+                            <p className="mt-1 flex items-center gap-1 truncate font-mono text-[10px] font-semibold text-copper">
+                              <Clock3 className="size-3" />
                               {String(start).padStart(2, "0")}:00–{String(end).padStart(2, "0")}:00
                             </p>
                           </Link>
