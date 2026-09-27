@@ -48,6 +48,7 @@ function SettingsForm({ s }: { s: Settings }) {
   const { tokens: T } = useDashTheme();
   const save = useServerFn(ownerService.saveSettings);
   const reset = useServerFn(ownerService.reset);
+  const clearAll = useServerFn(ownerService.clearAppointments);
   const advance = useServerFn(ownerService.advance);
   const qc = useQueryClient();
   const [f, setF] = useState(s);
@@ -172,6 +173,14 @@ function SettingsForm({ s }: { s: Settings }) {
             style={{ background: T.cardAlt, color: T.textMid, border: `1px solid ${T.cardBorder}`, cursor: 'pointer', opacity: demoBusy ? 0.6 : 1 }}
           >
             {demoBusy === 'Reset' ? 'Resetting…' : '↺ Reset Demo'}
+          </button>
+          <button
+            onClick={() => { if (confirm('Delete ALL appointments and empty the calendar? This cannot be undone.')) void runDemo('Clear appointments', () => clearAll()); }}
+            disabled={!!demoBusy}
+            className="px-3 py-2 rounded-lg text-xs"
+            style={{ background: 'rgba(229,57,53,0.12)', color: '#E53935', border: '1px solid rgba(229,57,53,0.3)', cursor: 'pointer', opacity: demoBusy ? 0.6 : 1 }}
+          >
+            {demoBusy === 'Clear appointments' ? 'Clearing…' : '🗑 Clear all appointments'}
           </button>
           <button
             onClick={() => void runDemo('Advance 15 min', () => advance({ data: { minutes: 15 } }))}

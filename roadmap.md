@@ -13,3 +13,5 @@
 - [x] Restore the previous calendar design only, preserving live calendar data and actions
 - [x] Replace oversized calendar project blocks with the selected compact cards
 - [x] Apply light mode consistently across every dashboard page
+- [x] Settings button to delete all appointments and empty the calendar
+- [ ] Smart Location & Service Area (GPS / map pin, service-area check, route- and traffic-aware slots) — waiting on user's map provider choice

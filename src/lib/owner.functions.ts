@@ -354,6 +354,16 @@ export const resetDemo = createServerFn({ method: "POST" }).middleware([requireS
   if (error) throw new Error("Demo reset failed.");
   return { ok: true };
 });
+export const clearAppointments = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+  const { db } = await guard(context);
+  const o = await db.from("offers").delete().not("id", "is", null);
+  if (o.error) throw new Error("Offers could not be cleared: " + o.error.message);
+  const t = await db.from("project_tasks").delete().not("id", "is", null);
+  if (t.error) throw new Error("Site work could not be cleared: " + t.error.message);
+  const j = await db.from("jobs").delete().not("id", "is", null);
+  if (j.error) throw new Error("Appointments could not be cleared: " + j.error.message);
+  return { ok: true };
+});
 export const advanceClock = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ minutes: z.union([z.literal(15), z.literal(1440)]) }).parse(d)).handler(async ({ context, data }) => {
   const { db, settings } = await guard(context);
   await db.from("settings").update({ clock_offset_minutes: settings.clock_offset_minutes + data.minutes }).eq("id", 1);
