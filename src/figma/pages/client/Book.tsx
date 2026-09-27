@@ -160,7 +160,7 @@ export default function Book() {
             </div>
             <div className="flex gap-3">
               {done.accessToken && <Link to={`/access/${done.accessToken}`} className="flex-1 btn-water no-underline inline-flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold">View booking</Link>}
-              <button className="flex-1 btn-ghost py-3 rounded-xl text-sm font-semibold" onClick={() => toast.info('Calendar file coming soon')}>Add to calendar</button>
+              {booked && <button className="flex-1 btn-ghost py-3 rounded-xl text-sm font-semibold" onClick={() => downloadIcs({ title: `Ekström VVS — ${ai?.title ?? 'Plumbing visit'}`, start: done.scheduledAt!, minutes: duration, location: form.address })}>Add to calendar</button>}
             </div>
           </div>
         </div>
