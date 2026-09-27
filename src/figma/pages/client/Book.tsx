@@ -1,3 +1,4 @@
+import { downloadIcs } from '@/lib/ics';
 import { useState } from 'react';
 import { Link, useNavigate } from '@/figma/router';
 import { useServerFn } from '@tanstack/react-start';
