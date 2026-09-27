@@ -2,28 +2,31 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, ChevronRight, Clock3 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock3, MapPin } from "lucide-react";
 import DashboardLayout from "@/figma/components/DashboardLayout";
-import { PageHeader, StatusBadge } from "@/components/vvs/primitives";
+import { PageHeader } from "@/components/vvs/primitives";
 import { QueryState } from "@/components/vvs/query-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { jobService } from "@/lib/services";
-import { fmtShortDay, fmtTime, sameStockholmDay, stockholmParts } from "@/lib/time";
+import { fmtTime, sameStockholmDay, stockholmParts } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-const START = 7;
-const END = 18;
-const ROW = 56;
+const statusDetails = (status: string) => {
+  if (status === "cancelled") return { label: "Cancelled", tone: "bg-destructive/10 text-destructive" };
+  if (status === "access_confirmed") return { label: "Access confirmed", tone: "bg-success/12 text-success" };
+  if (status === "in_progress") return { label: "In progress", tone: "bg-primary/12 text-primary" };
+  if (status === "confirmed") return { label: "Needs access", tone: "bg-warning/15 text-warning-foreground" };
+  return { label: status.replaceAll("_", " "), tone: "bg-muted text-muted-foreground" };
+};
 
-const tone = (status: string) =>
-  status === "cancelled"
-    ? "bg-destructive/8 border-destructive line-through"
-    : status === "access_confirmed" || status === "in_progress"
-      ? "bg-success/12 border-success"
-      : status === "confirmed"
-        ? "bg-warning/15 border-warning"
-        : "bg-accent border-primary";
+const longDate = (date: Date) =>
+  new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "Europe/Stockholm",
+  }).format(date);
 
 export default function CalendarPage() {
   const [view, setView] = useState<"Day" | "Week">("Week");
@@ -84,169 +87,111 @@ export default function CalendarPage() {
               (_, index) => new Date(new Date(data.from).getTime() + index * 86400000 + 3600000 * 12),
             );
             const now = new Date(data.now);
-            const nowParts = stockholmParts(now);
+            const totalEvents = data.jobs.filter((job) => job.scheduled_at).length + data.tasks.length;
 
             return (
-              <Card className="overflow-x-auto rounded-2xl shadow-none">
-                <div className={cn("p-5", view === "Week" && "min-w-[900px]")}>
-                  <div
-                    className="grid border-b pb-3 text-center font-mono text-xs uppercase text-muted-foreground"
-                    style={{ gridTemplateColumns: `60px repeat(${days.length},1fr)` }}
-                  >
-                    <span />
-                    {days.map((day) => (
-                      <span
-                        key={day.toISOString()}
-                        className={sameStockholmDay(day, now) ? "text-primary" : ""}
-                      >
-                        {fmtShortDay(day)}
-                      </span>
-                    ))}
-                  </div>
+              <Card className="overflow-hidden rounded-lg border shadow-none">
+                <div className="divide-y">
+                  {days.map((day) => {
+                    const parts = stockholmParts(day);
+                    const dateKey = `${parts.y}-${String(parts.m + 1).padStart(2, "0")}-${String(parts.d).padStart(2, "0")}`;
+                    const jobs = data.jobs
+                      .filter((job) => job.scheduled_at && sameStockholmDay(new Date(job.scheduled_at), day))
+                      .sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? ""));
+                    const tasks = data.tasks
+                      .filter((task) => task.work_date === dateKey)
+                      .sort((a, b) => a.start_hour - b.start_hour);
+                    const events = [
+                      ...jobs.map((job) => ({ kind: "job" as const, hour: stockholmParts(new Date(job.scheduled_at as string)).h, minute: stockholmParts(new Date(job.scheduled_at as string)).mi, item: job })),
+                      ...tasks.map((task) => ({ kind: "task" as const, hour: task.start_hour, minute: 0, item: task })),
+                    ].sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute));
+                    const isRestDay = (data.restDays ?? [0, 6]).includes(day.getUTCDay());
+                    const isToday = sameStockholmDay(day, now);
 
-                  {data.tasks.length > 0 && (
-                    <div
-                      className="grid gap-1.5 border-b py-2"
-                      style={{ gridTemplateColumns: `60px repeat(${days.length},1fr)` }}
-                    >
-                      <span className="self-center font-mono text-[10px] uppercase text-copper">Site work</span>
-                      {days.map((day) => {
-                        const parts = stockholmParts(day);
-                        const dateKey = `${parts.y}-${String(parts.m + 1).padStart(2, "0")}-${String(parts.d).padStart(2, "0")}`;
-                        return (
-                          <div key={day.toISOString()} className="flex min-w-0 flex-col gap-1.5">
-                            {data.tasks.filter((task) => task.work_date === dateKey).map((task) => (
-                              <Link
-                                key={task.id}
-                                to="/dashboard/projects/$projectId"
-                                params={{ projectId: task.project_id }}
-                                title={`${task.title} · ${task.projects?.customer_name ?? ""}`}
-                                className={cn(
-                                  "relative block overflow-hidden rounded-lg border border-copper/60 bg-copper/15 py-1.5 pl-3.5 pr-2 text-xs transition-colors hover:border-copper hover:bg-copper/25",
-                                  task.done && "opacity-60",
-                                )}
-                              >
-                                <span className="absolute bottom-1 left-1 top-1 w-1 rounded-full bg-copper" />
-                                <p className="truncate font-semibold text-foreground">{task.title}</p>
-                                <p className="flex items-center gap-1 truncate font-mono text-[10px] text-copper">
-                                  <Clock3 className="size-3 shrink-0" />
-                                  {String(task.start_hour).padStart(2, "0")}–{String(task.end_hour).padStart(2, "0")} · {task.projects?.customer_name}
-                                </p>
-                              </Link>
-                            ))}
+                    return (
+                      <section key={day.toISOString()}>
+                        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 bg-muted/55 px-4 py-3 sm:px-6">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <h2 className="min-w-0 font-display text-lg capitalize text-foreground sm:text-xl">{longDate(day)}</h2>
+                            {isToday && <span className="shrink-0 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">Today</span>}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                          <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                            {isRestDay ? "Rest day" : `${events.length} ${events.length === 1 ? "event" : "events"}`}
+                          </span>
+                        </header>
 
-                  <div
-                    className="relative grid"
-                    style={{ gridTemplateColumns: `60px repeat(${days.length},1fr)` }}
-                  >
-                    {Array.from({ length: END - START }, (_, hourIndex) => (
-                      <div key={hourIndex} className="contents">
-                        <div
-                          className="border-b py-1 text-xs text-muted-foreground"
-                          style={{ height: ROW }}
-                        >
-                          {String(START + hourIndex).padStart(2, "0")}:00
-                        </div>
-                        {days.map((day) => (
-                          <div
-                            key={day.toISOString()}
-                            className={cn(
-                              "border-b border-l",
-                              (data.restDays ?? [0, 6]).includes(day.getUTCDay()) && "bg-muted/60",
-                            )}
-                            style={{ height: ROW }}
-                          />
-                        ))}
-                      </div>
-                    ))}
+                        {events.length === 0 ? (
+                          <div className="px-4 py-5 text-sm text-muted-foreground sm:px-6">
+                            {isRestDay ? "No work planned." : "No appointments — this day is free."}
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-border/60">
+                            {events.map((event, index) => {
+                              if (event.kind === "task") {
+                                const task = event.item;
+                                return (
+                                  <Link
+                                    key={`task-${task.id}`}
+                                    to="/dashboard/projects/$projectId"
+                                    params={{ projectId: task.project_id }}
+                                    className={cn("grid grid-cols-[64px_minmax(0,1fr)] gap-3 px-4 py-4 transition-colors hover:bg-copper/5 sm:grid-cols-[80px_minmax(0,1fr)_auto] sm:items-center sm:px-6", task.done && "opacity-60")}
+                                  >
+                                    <div className="shrink-0">
+                                      <p className="text-sm font-bold tabular-nums text-foreground">{String(task.start_hour).padStart(2, "0")}:00</p>
+                                      <p className="mt-0.5 text-[10px] font-medium uppercase text-muted-foreground">{task.end_hour - task.start_hour}h</p>
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-semibold text-foreground">{task.title}</p>
+                                      <p className="mt-1 text-xs text-muted-foreground">{task.projects?.customer_name || "Project work"}</p>
+                                    </div>
+                                    <span className="col-start-2 w-fit rounded-full bg-copper/12 px-2.5 py-1 text-[10px] font-bold uppercase text-copper sm:col-start-auto">Site work</span>
+                                  </Link>
+                                );
+                              }
 
-                    {days.map((day, dayIndex) =>
-                      data.jobs
-                        .filter((job) => job.scheduled_at && sameStockholmDay(new Date(job.scheduled_at), day))
-                        .sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? ""))
-                        .flatMap((job, jobIndex, jobs) => {
-                          if (!job.scheduled_at) return [];
-                          const parts = stockholmParts(new Date(job.scheduled_at));
-                          const top = ((parts.h - START) * 60 + parts.mi) / 60 * ROW;
-                          const height = job.duration_min / 60 * ROW;
-                          const column = {
-                            left: `calc(60px + (100% - 60px) / ${days.length} * ${dayIndex} + 3px)`,
-                            width: `calc((100% - 60px) / ${days.length} - 6px)`,
-                          };
-                          const next = jobs[jobIndex + 1];
-                          const items = [
-                            <Link
-                              key={job.id}
-                              to="/dashboard/jobs/$jobId"
-                              params={{ jobId: job.id }}
-                              className={cn(
-                                "absolute overflow-hidden rounded-sm border-l-4 p-2 text-xs hover:z-10 hover:shadow",
-                                tone(job.status),
-                              )}
-                              style={{ ...column, top: top + 2, height: Math.max(24, height - 4) }}
-                            >
-                              <p className="truncate font-bold">{fmtTime(job.scheduled_at)} {job.title}</p>
-                              <p className="truncate text-muted-foreground">{job.customer_name} · {job.zone}</p>
-                            </Link>,
-                          ];
-                          if (next && next.zone !== job.zone && job.status !== "cancelled") {
-                            items.push(
-                              <div
-                                key={`${job.id}-travel`}
-                                className="absolute rounded-sm bg-muted px-2 text-[10px] leading-5 text-muted-foreground"
-                                style={{ ...column, top: top + height, height: 20 / 60 * ROW }}
-                              >
-                                Travel · 20 min
-                              </div>,
-                            );
-                          }
-                          return items;
-                        }),
-                    )}
-
-
-                    {days.some((day) => sameStockholmDay(day, now)) &&
-                      nowParts.h >= START &&
-                      nowParts.h < END && (
-                        <div
-                          aria-label="Current time"
-                          className="pointer-events-none absolute h-0.5 bg-destructive"
-                          style={{
-                            top: ((nowParts.h - START) * 60 + nowParts.mi) / 60 * ROW,
-                            left:
-                              view === "Week"
-                                ? `calc(60px + (100% - 60px) / 7 * ${days.findIndex((day) => sameStockholmDay(day, now))})`
-                                : 60,
-                            width: view === "Week" ? "calc((100% - 60px) / 7)" : "calc(100% - 60px)",
-                          }}
-                        >
-                          <span className="absolute -left-1 -top-1 size-2.5 rounded-full bg-destructive" />
-                        </div>
-                      )}
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <StatusBadge tone="warning">Confirmed · needs access</StatusBadge>
-                    <StatusBadge tone="success">Access confirmed</StatusBadge>
-                    <StatusBadge tone="info">Other</StatusBadge>
-                    <StatusBadge>Travel buffer</StatusBadge>
-                    <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
-                      Rest day
-                    </span>
-                    <StatusBadge tone="danger">Cancelled · recoverable</StatusBadge>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-copper/12 px-2.5 py-0.5 text-xs font-semibold text-copper">
-                      Project site work
-                    </span>
-                  </div>
-                  {data.jobs.length === 0 && data.tasks.length === 0 && (
-                    <p className="mt-4 text-sm text-muted-foreground">No appointments in this period.</p>
-                  )}
+                              const job = event.item;
+                              if (!job.scheduled_at) return null;
+                              const details = statusDetails(job.status);
+                              const nextJob = jobs[jobs.findIndex((candidate) => candidate.id === job.id) + 1];
+                              const showTravel = nextJob && nextJob.zone !== job.zone && job.status !== "cancelled";
+                              return (
+                                <div key={`job-${job.id}`}>
+                                  <Link
+                                    to="/dashboard/jobs/$jobId"
+                                    params={{ jobId: job.id }}
+                                    className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 px-4 py-4 transition-colors hover:bg-muted/45 sm:grid-cols-[80px_minmax(0,1fr)_auto] sm:items-center sm:px-6"
+                                  >
+                                    <div className="shrink-0">
+                                      <p className="text-sm font-bold tabular-nums text-foreground">{fmtTime(job.scheduled_at)}</p>
+                                      <p className="mt-0.5 text-[10px] font-medium uppercase text-muted-foreground">{job.duration_min} min</p>
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className={cn("text-sm font-semibold text-foreground", job.status === "cancelled" && "line-through")}>{job.title}</p>
+                                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                        <span>{job.customer_name}</span>
+                                        <span className="inline-flex items-center gap-1"><MapPin className="size-3 shrink-0" />Zone {job.zone}</span>
+                                      </p>
+                                    </div>
+                                    <span className={cn("col-start-2 w-fit rounded-full px-2.5 py-1 text-[10px] font-bold uppercase sm:col-start-auto", details.tone)}>{details.label}</span>
+                                  </Link>
+                                  {showTravel && (
+                                    <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 bg-muted/25 px-4 py-2 text-xs text-muted-foreground sm:grid-cols-[80px_minmax(0,1fr)] sm:px-6">
+                                      <span />
+                                      <span className="inline-flex items-center gap-2"><Clock3 className="size-3.5 shrink-0" />Travel time · 20 min</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
                 </div>
+                <footer className="border-t bg-card px-4 py-4 text-xs font-medium text-muted-foreground sm:px-6">
+                  {totalEvents} {totalEvents === 1 ? "event" : "events"} in this {view === "Week" ? "week" : "day"}
+                </footer>
               </Card>
             );
           }}
