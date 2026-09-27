@@ -104,6 +104,42 @@ export default function CalendarPage() {
                     ))}
                   </div>
 
+                  {data.tasks.length > 0 && (
+                    <div
+                      className="grid gap-1.5 border-b py-2"
+                      style={{ gridTemplateColumns: `60px repeat(${days.length},1fr)` }}
+                    >
+                      <span className="self-center font-mono text-[10px] uppercase text-copper">Site work</span>
+                      {days.map((day) => {
+                        const parts = stockholmParts(day);
+                        const dateKey = `${parts.y}-${String(parts.m + 1).padStart(2, "0")}-${String(parts.d).padStart(2, "0")}`;
+                        return (
+                          <div key={day.toISOString()} className="flex min-w-0 flex-col gap-1.5">
+                            {data.tasks.filter((task) => task.work_date === dateKey).map((task) => (
+                              <Link
+                                key={task.id}
+                                to="/dashboard/projects/$projectId"
+                                params={{ projectId: task.project_id }}
+                                title={`${task.title} · ${task.projects?.customer_name ?? ""}`}
+                                className={cn(
+                                  "relative block overflow-hidden rounded-lg border border-copper/60 bg-copper/15 py-1.5 pl-3.5 pr-2 text-xs transition-colors hover:border-copper hover:bg-copper/25",
+                                  task.done && "opacity-60",
+                                )}
+                              >
+                                <span className="absolute bottom-1 left-1 top-1 w-1 rounded-full bg-copper" />
+                                <p className="truncate font-semibold text-foreground">{task.title}</p>
+                                <p className="flex items-center gap-1 truncate font-mono text-[10px] text-copper">
+                                  <Clock3 className="size-3 shrink-0" />
+                                  {String(task.start_hour).padStart(2, "0")}–{String(task.end_hour).padStart(2, "0")} · {task.projects?.customer_name}
+                                </p>
+                              </Link>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <div
                     className="relative grid"
                     style={{ gridTemplateColumns: `60px repeat(${days.length},1fr)` }}
@@ -173,40 +209,6 @@ export default function CalendarPage() {
                         }),
                     )}
 
-                    {days.map((day, dayIndex) => {
-                      const parts = stockholmParts(day);
-                      const dateKey = `${parts.y}-${String(parts.m + 1).padStart(2, "0")}-${String(parts.d).padStart(2, "0")}`;
-                      return data.tasks.filter((task) => task.work_date === dateKey).map((task) => {
-                        const start = Math.max(START, task.start_hour);
-                        const end = Math.min(END, task.end_hour);
-                        if (end <= start) return null;
-                        return (
-                          <Link
-                            key={task.id}
-                            to="/dashboard/projects/$projectId"
-                            params={{ projectId: task.project_id }}
-                            className={cn(
-                              "group absolute z-[5] overflow-hidden rounded-lg border-2 border-copper/70 bg-copper/20 p-2 pl-4 text-xs shadow-md transition-all hover:z-10 hover:border-copper hover:bg-copper/30",
-                              task.done && "opacity-60",
-                            )}
-                            style={{
-                              left: `calc(60px + (100% - 60px) / ${days.length} * ${dayIndex} + 5px)`,
-                              width: `calc((100% - 60px) / ${days.length} - 10px)`,
-                              top: (start - START) * ROW + 2,
-                              height: Math.min(68, Math.max(52, (end - start) * ROW - 4)),
-                            }}
-                          >
-                            <span className="absolute bottom-1.5 left-1 top-1.5 w-1.5 rounded-full bg-copper" />
-                            <p className="truncate font-bold text-foreground" title={task.title}>{task.title}</p>
-                            <p className="mt-0.5 truncate font-medium text-foreground/80">{task.projects?.customer_name}</p>
-                            <p className="mt-1 flex items-center gap-1 truncate font-mono text-[10px] font-semibold text-copper">
-                              <Clock3 className="size-3" />
-                              {String(start).padStart(2, "0")}:00–{String(end).padStart(2, "0")}:00
-                            </p>
-                          </Link>
-                        );
-                      });
-                    })}
 
                     {days.some((day) => sameStockholmDay(day, now)) &&
                       nowParts.h >= START &&
