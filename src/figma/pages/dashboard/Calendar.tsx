@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock3 } from "lucide-react";
 import DashboardLayout from "@/figma/components/DashboardLayout";
 import { PageHeader, StatusBadge } from "@/components/vvs/primitives";
 import { QueryState } from "@/components/vvs/query-state";
@@ -186,19 +186,22 @@ export default function CalendarPage() {
                             to="/dashboard/projects/$projectId"
                             params={{ projectId: task.project_id }}
                             className={cn(
-                              "absolute overflow-hidden rounded-sm border-l-4 border-copper bg-copper/12 p-2 text-xs hover:z-10 hover:shadow",
+                              "group absolute overflow-hidden rounded-lg border border-border/70 bg-card/90 p-2.5 pl-4 text-xs shadow-sm backdrop-blur-sm transition-all hover:z-10 hover:border-copper/60 hover:bg-card hover:shadow-md",
                               task.done && "opacity-60",
                             )}
                             style={{
-                              left: `calc(60px + (100% - 60px) / ${days.length} * ${dayIndex} + ${days.length === 1 ? "50%" : "40%"})`,
-                              width: `calc((100% - 60px) / ${days.length} * ${days.length === 1 ? 0.5 : 0.6} - 4px)`,
+                              left: `calc(60px + (100% - 60px) / ${days.length} * ${dayIndex} + 5px)`,
+                              width: `calc((100% - 60px) / ${days.length} - 10px)`,
                               top: (start - START) * ROW + 2,
-                              height: (end - start) * ROW - 4,
+                              height: Math.min(68, Math.max(52, (end - start) * ROW - 4)),
                             }}
                           >
-                            <p className="truncate font-bold">{task.title}</p>
-                            <p className="truncate text-muted-foreground">
-                              {task.projects?.customer_name} · {task.projects?.ref}
+                            <span className="absolute bottom-2 left-1 top-2 w-1 rounded-full bg-copper" />
+                            <p className="truncate font-bold text-foreground">{task.title}</p>
+                            <p className="mt-0.5 truncate text-muted-foreground">{task.projects?.customer_name}</p>
+                            <p className="mt-1 flex items-center gap-1 truncate font-mono text-[9px] text-copper">
+                              <Clock3 className="size-2.5" />
+                              {String(start).padStart(2, "0")}:00–{String(end).padStart(2, "0")}:00
                             </p>
                           </Link>
                         );
