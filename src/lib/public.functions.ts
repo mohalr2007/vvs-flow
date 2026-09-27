@@ -59,6 +59,7 @@ const bookingSchema = z.object({
   duration_min: z.number().int().min(15).max(480).nullable(), price_high: z.number().min(0).max(1000000).nullable(),
   confidence: z.number().min(0).max(100).nullable(), missing_fields: z.array(z.string().max(80)).max(5).nullable(),
   slotStart: z.string().datetime().nullable(), photoPath: z.string().regex(/^intake\/[a-f0-9-]+\.\w+$/).nullable(),
+  lat: z.number().min(-90).max(90).nullable(), lng: z.number().min(-180).max(180).nullable(),
 });
 
 export const createBooking = createServerFn({ method: "POST" })
