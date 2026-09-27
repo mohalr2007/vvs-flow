@@ -10,4 +10,4 @@
 - [x] Add persistent light/dark modes, page transitions, scroll motion, and complete English copy
 - [x] Real backend: database, owner sign-in with owner role, AI intake, photo uploads, slots, token pages, waitlist offers, dashboard data, ROT CSV, settings, demo clock
 - [x] Apply the uploaded Figma layouts to every dashboard page, not only the global theme, without regressing existing functionality
-- [ ] Restore the previous calendar design only, preserving live calendar data and actions
+- [x] Restore the previous calendar design only, preserving live calendar data and actions
