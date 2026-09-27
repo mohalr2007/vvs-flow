@@ -48,6 +48,8 @@ export type Database = {
           email: string
           id: string
           is_emergency: boolean
+          lat: number | null
+          lng: number | null
           missing_fields: string[]
           phone: string
           photo_path: string | null
@@ -72,6 +74,8 @@ export type Database = {
           email?: string
           id?: string
           is_emergency?: boolean
+          lat?: number | null
+          lng?: number | null
           missing_fields?: string[]
           phone?: string
           photo_path?: string | null
@@ -96,6 +100,8 @@ export type Database = {
           email?: string
           id?: string
           is_emergency?: boolean
+          lat?: number | null
+          lng?: number | null
           missing_fields?: string[]
           phone?: string
           photo_path?: string | null
@@ -253,6 +259,8 @@ export type Database = {
           description: string
           email: string
           id: string
+          lat: number | null
+          lng: number | null
           phone: string
           planned_days: number
           quote: Json
@@ -270,6 +278,8 @@ export type Database = {
           description?: string
           email?: string
           id?: string
+          lat?: number | null
+          lng?: number | null
           phone?: string
           planned_days?: number
           quote?: Json
@@ -287,6 +297,8 @@ export type Database = {
           description?: string
           email?: string
           id?: string
+          lat?: number | null
+          lng?: number | null
           phone?: string
           planned_days?: number
           quote?: Json
