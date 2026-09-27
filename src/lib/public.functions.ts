@@ -67,6 +67,13 @@ export const createBooking = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { db, now } = await context();
     const zone = zoneFromAddress(data.address);
+    // Service-area validation: a pinned location must be inside the Västerås area.
+    if (data.lat != null && data.lng != null) {
+      const { isInsideServiceArea, SERVICE_AREA } = await import("./location.server");
+      if (!isInsideServiceArea(data.lat, data.lng))
+        throw new Error(`This address is outside our service area (${SERVICE_AREA.name} + ${SERVICE_AREA.radiusKm} km). Please call us for options.`);
+    }
+    const coords = data.lat != null && data.lng != null ? { lat: data.lat, lng: data.lng } : {};
     if (data.kind === "project") {
       const { data: p, error } = await db.from("projects").insert({ title: data.title ?? "Project request", customer_name: data.name, phone: data.phone, email: data.email, address: data.address, description: data.description, status: "site_visit_requested" }).select("ref").single();
       if (error) throw new Error("Your request could not be saved. Please try again.");
