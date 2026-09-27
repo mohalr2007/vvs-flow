@@ -59,6 +59,7 @@ const bookingSchema = z.object({
   duration_min: z.number().int().min(15).max(480).nullable(), price_high: z.number().min(0).max(1000000).nullable(),
   confidence: z.number().min(0).max(100).nullable(), missing_fields: z.array(z.string().max(80)).max(5).nullable(),
   slotStart: z.string().datetime().nullable(), photoPath: z.string().regex(/^intake\/[a-f0-9-]+\.\w+$/).nullable(),
+  lat: z.number().min(-90).max(90).nullable(), lng: z.number().min(-180).max(180).nullable(),
 });
 
 export const createBooking = createServerFn({ method: "POST" })
@@ -66,14 +67,21 @@ export const createBooking = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { db, now } = await context();
     const zone = zoneFromAddress(data.address);
+    // Service-area validation: a pinned location must be inside the Västerås area.
+    if (data.lat != null && data.lng != null) {
+      const { isInsideServiceArea, SERVICE_AREA } = await import("./location.server");
+      if (!isInsideServiceArea(data.lat, data.lng))
+        throw new Error(`This address is outside our service area (${SERVICE_AREA.name} + ${SERVICE_AREA.radiusKm} km). Please call us for options.`);
+    }
+    const coords = data.lat != null && data.lng != null ? { lat: data.lat, lng: data.lng } : {};
     if (data.kind === "project") {
-      const { data: p, error } = await db.from("projects").insert({ title: data.title ?? "Project request", customer_name: data.name, phone: data.phone, email: data.email, address: data.address, description: data.description, status: "site_visit_requested" }).select("ref").single();
+      const { data: p, error } = await db.from("projects").insert({ title: data.title ?? "Project request", customer_name: data.name, phone: data.phone, email: data.email, address: data.address, description: data.description, status: "site_visit_requested", ...coords }).select("ref").single();
       if (error) throw new Error("Your request could not be saved. Please try again.");
       return { type: "project" as const, ref: p.ref, accessToken: null, scheduledAt: null, eta: null };
     }
     if (data.kind === "emergency") {
       const eta = new Date(Math.ceil((now.getTime() + 35 * 60000) / 300000) * 300000);
-      const { data: j, error } = await db.from("jobs").insert({ customer_name: data.name, phone: data.phone, email: data.email, address: data.address, zone, title: data.title ?? "Emergency leak", description: data.description, status: "new", urgency: "Emergency", is_emergency: true, confidence: data.confidence ?? 0, duration_min: data.duration_min ?? 90, value: data.price_high ?? 0, scheduled_at: eta.toISOString(), photo_path: data.photoPath }).select("ref,access_token").single();
+      const { data: j, error } = await db.from("jobs").insert({ customer_name: data.name, phone: data.phone, email: data.email, address: data.address, zone, title: data.title ?? "Emergency leak", description: data.description, status: "new", urgency: "Emergency", is_emergency: true, confidence: data.confidence ?? 0, duration_min: data.duration_min ?? 90, value: data.price_high ?? 0, scheduled_at: eta.toISOString(), photo_path: data.photoPath, ...coords }).select("ref,access_token").single();
       if (error) throw new Error("Your emergency request could not be saved. Please call us directly.");
       return { type: "emergency" as const, ref: j.ref, accessToken: j.access_token, scheduledAt: eta.toISOString(), eta: { from: eta.toISOString(), to: new Date(eta.getTime() + 25 * 60000).toISOString() } };
     }
@@ -83,7 +91,7 @@ export const createBooking = createServerFn({ method: "POST" })
       const groups = await slotsFor(data.duration_min ?? 60, zone);
       if (!groups.some((g) => g.slots.some((s) => s.start === data.slotStart))) throw new Error("That time was just taken. Please choose another time.");
     }
-    const { data: j, error } = await db.from("jobs").insert({ customer_name: data.name, phone: data.phone, email: data.email, address: data.address, zone, title: data.title ?? "Plumbing request", description: data.description, status: lowConfidence ? "needs_assessment" : "confirmed", urgency: data.urgency ?? "Normal", confidence, duration_min: data.duration_min ?? 60, value: data.price_high ?? 0, missing_fields: data.missing_fields ?? [], scheduled_at: lowConfidence ? null : data.slotStart, photo_path: data.photoPath }).select("ref,access_token,scheduled_at").single();
+    const { data: j, error } = await db.from("jobs").insert({ customer_name: data.name, phone: data.phone, email: data.email, address: data.address, zone, title: data.title ?? "Plumbing request", description: data.description, status: lowConfidence ? "needs_assessment" : "confirmed", urgency: data.urgency ?? "Normal", confidence, duration_min: data.duration_min ?? 60, value: data.price_high ?? 0, missing_fields: data.missing_fields ?? [], scheduled_at: lowConfidence ? null : data.slotStart, photo_path: data.photoPath, ...coords }).select("ref,access_token,scheduled_at").single();
     if (error) throw new Error("Your booking hasn't been confirmed. Please try again.");
     if (data.email) {
       const { sendEmail, bookingConfirmationEmail, bookingUrl } = await import("./email.server");

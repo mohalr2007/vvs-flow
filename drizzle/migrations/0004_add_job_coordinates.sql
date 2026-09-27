@@ -1,0 +1,2 @@
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS lat double precision, ADD COLUMN IF NOT EXISTS lng double precision;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS lat double precision, ADD COLUMN IF NOT EXISTS lng double precision;

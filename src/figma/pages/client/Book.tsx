@@ -6,6 +6,7 @@ import { useServerFn } from '@tanstack/react-start';
 import { toast } from 'sonner';
 import ClientNav from '@/figma/components/ClientNav';
 import { bookingService } from '@/lib/services';
+import { LocationPicker, type PickedLocation } from '@/figma/components/LocationPicker';
 import { uploadPhoto } from '@/lib/upload';
 import type { SlotGroup } from '@/lib/vvs-data';
 import { fmtDay, fmtRange, fmtTime, sek } from '@/lib/time';
@@ -67,6 +68,7 @@ export default function Book() {
   const [aiError, setAiError] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [form, setForm] = useState({ name: '', address: '', phone: '', email: '' });
+  const [loc, setLoc] = useState<PickedLocation>({ address: '', lat: null, lng: null, inside: null, driveMinutes: null });
   const [photo, setPhoto] = useState<File | null>(null);
   const [groups, setGroups] = useState<SlotGroup[] | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -104,10 +106,10 @@ export default function Book() {
       const photoPath = photo ? await uploadPhoto(photo) : null;
       const r = await create({
         data: {
-          kind: isProject ? 'project' : 'repair', ...form, description,
+          kind: isProject ? 'project' : 'repair', ...form, address: loc.address || form.address, description,
           title: ai?.title ?? null, urgency: ai?.urgency ?? null, duration_min: ai?.duration_min ?? null,
           price_high: ai?.price_high ?? null, confidence: ai?.confidence ?? null, missing_fields: ai?.missing_fields ?? null,
-          slotStart: skipTime ? null : selectedSlot, photoPath,
+          slotStart: skipTime ? null : selectedSlot, photoPath, lat: loc.lat, lng: loc.lng,
         },
       });
       setDone(r); setStep('done');
@@ -266,7 +268,6 @@ export default function Book() {
             <div className="flex flex-col gap-4">
               {[
                 { key: 'name', label: 'Full name', placeholder: 'Anna Lindström', type: 'text' },
-                { key: 'address', label: 'Address', placeholder: 'Vasagatan 14, Västerås', type: 'text' },
                 { key: 'phone', label: 'Phone number', placeholder: '+46 73 456 78 90', type: 'tel' },
                 { key: 'email', label: 'Email (optional)', placeholder: 'anna@example.com', type: 'email' },
               ].map(field => (
@@ -277,6 +278,7 @@ export default function Book() {
                     onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))} />
                 </div>
               ))}
+              <LocationPicker value={loc} onChange={(v) => { setLoc(v); setForm(f => ({ ...f, address: v.address })); }} />
               <div>
                 <label style={{ display: 'block', fontSize: 12, color: '#6DA8C4', fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Photo (optional)</label>
                 <label className="w-full p-6 rounded-xl flex flex-col items-center gap-2 cursor-pointer"
@@ -366,9 +368,9 @@ export default function Book() {
                 style={{ opacity: !ai && !manual ? 0.4 : 1 }}>Continue →</button>
             )}
             {step === 3 && (
-              <button onClick={goNext} disabled={!form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7}
+              <button onClick={goNext} disabled={!form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false}
                 className="btn-water flex-1 py-4 rounded-xl font-semibold"
-                style={{ opacity: !form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 ? 0.4 : 1 }}>Continue →</button>
+                style={{ opacity: !form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false ? 0.4 : 1 }}>Continue →</button>
             )}
             {step === 4 && !skipTime && (
               <button onClick={goNext} disabled={!selectedSlot} className="btn-water flex-1 py-4 rounded-xl font-semibold"
