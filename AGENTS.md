@@ -10,7 +10,7 @@
 - Keep public customer pages in `CustomerShell` and operational pages beneath the `/dashboard` `OwnerShell`, so the two experiences remain visually related but structurally distinct.
 - `/dashboard` is gated client-side (ssr:false) and every owner server function re-checks the owner role; the first confirmed account can claim ownership once, so the workspace always has a single owner.
 - Do not use 3D visuals; use authentic trade photography and restrained interface motion for faster, more credible customer experiences.
-- Use a bright Scandinavian industrial system across customer and owner screens: crisp white surfaces, charcoal structure, muted blue accents, Urbanist headings, and Epilogue body text.
+- Use the uploaded Figma system across all screens: marine surfaces, cyan/copper accents, Fraunces headings, Outfit body, and mono labels.
 - Use the root-level theme and motion layer for persistent appearance changes and route/scroll transitions, so every customer and owner page behaves consistently.
 
 - Server functions must use the direct `createServerFn({...}).middleware([...]).handler(...)` chain per export — a factory wrapper (e.g. `owner()`) defeats the TanStack server-fn transform, shipping real handlers to the client where they crash with undefined context.
