@@ -9,3 +9,4 @@
 - [x] Remove all 3D and replace it with a professional photographic Scandinavian direction
 - [x] Add persistent light/dark modes, page transitions, scroll motion, and complete English copy
 - [x] Real backend: database, owner sign-in with owner role, AI intake, photo uploads, slots, token pages, waitlist offers, dashboard data, ROT CSV, settings, demo clock
+- [ ] Apply the complete uploaded Figma frontend across every customer and owner page without regressing existing functionality
