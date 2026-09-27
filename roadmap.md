@@ -11,5 +11,5 @@
 - [x] Real backend: database, owner sign-in with owner role, AI intake, photo uploads, slots, token pages, waitlist offers, dashboard data, ROT CSV, settings, demo clock
 - [x] Apply the uploaded Figma layouts to every dashboard page, not only the global theme, without regressing existing functionality
 - [x] Restore the previous calendar design only, preserving live calendar data and actions
-- [ ] Replace oversized calendar project blocks with the selected compact cards
-- [ ] Apply light mode consistently across every dashboard page
+- [x] Replace oversized calendar project blocks with the selected compact cards
+- [x] Apply light mode consistently across every dashboard page

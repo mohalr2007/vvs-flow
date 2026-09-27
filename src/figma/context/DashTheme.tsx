@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 type Theme = 'dark' | 'light';
 
@@ -97,8 +97,34 @@ const Ctx = createContext<DashThemeCtx>({
 
 export function DashThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('vvs-theme');
+    const initial = stored === 'light' || stored === 'dark'
+      ? stored
+      : document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    setTheme(initial);
+    document.documentElement.classList.toggle('dark', initial === 'dark');
+  }, []);
+
+  const toggle = useCallback(() => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    const apply = () => {
+      setTheme(next);
+      document.documentElement.classList.toggle('dark', next === 'dark');
+      window.localStorage.setItem('vvs-theme', next);
+    };
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const transition = document.startViewTransition?.bind(document);
+    if (!transition || reducedMotion) {
+      apply();
+      return;
+    }
+    transition(apply);
+  }, [theme]);
+
   return (
-    <Ctx.Provider value={{ theme, tokens: theme === 'dark' ? DARK : LIGHT, toggle: () => setTheme(t => t === 'dark' ? 'light' : 'dark') }}>
+    <Ctx.Provider value={{ theme, tokens: theme === 'dark' ? DARK : LIGHT, toggle }}>
       {children}
     </Ctx.Provider>
   );
