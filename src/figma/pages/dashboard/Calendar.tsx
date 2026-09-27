@@ -4,7 +4,6 @@ import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, ChevronRight, Clock3, MapPin } from "lucide-react";
 import DashboardLayout from "@/figma/components/DashboardLayout";
-import { PageHeader } from "@/components/vvs/primitives";
 import { QueryState } from "@/components/vvs/query-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -40,11 +39,12 @@ export default function CalendarPage() {
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-6xl space-y-6 p-4 animate-fade-up md:p-8">
-        <PageHeader
-          title="Calendar"
-          description="Work, travel, and protected capacity in one operational view."
-          action={
-            <div className="flex flex-wrap items-center justify-end gap-2">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="font-display text-3xl font-light sm:text-4xl">Calendar</h1>
+            <p className="mt-2 text-sm text-muted-foreground">Work, travel, and protected capacity in one clear view.</p>
+          </div>
+          <div className="grid grid-cols-[auto_auto_auto_1fr] items-center gap-2 sm:flex sm:justify-end">
               <Button
                 size="icon"
                 variant="outline"
@@ -76,9 +76,8 @@ export default function CalendarPage() {
                   </Button>
                 ))}
               </div>
-            </div>
-          }
-        />
+          </div>
+        </header>
 
         <QueryState q={query}>
           {(data) => {
@@ -90,7 +89,7 @@ export default function CalendarPage() {
             const totalEvents = data.jobs.filter((job) => job.scheduled_at).length + data.tasks.length;
 
             return (
-              <Card className="overflow-hidden rounded-lg border shadow-none">
+              <Card className="calendar-paper overflow-hidden rounded-lg border shadow-none">
                 <div className="divide-y">
                   {days.map((day) => {
                     const parts = stockholmParts(day);

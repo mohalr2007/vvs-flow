@@ -93,6 +93,21 @@ button, a, input, textarea, select { outline-offset: 3px; }
 @utility chrome-surface { background: var(--card); border: 1px solid var(--border); box-shadow: 0 12px 36px color-mix(in oklab,var(--owner) 9%,transparent); }
 @utility technical-grid { background-image: linear-gradient(to right,color-mix(in oklab,var(--foreground) 4%,transparent) 1px,transparent 1px),linear-gradient(to bottom,color-mix(in oklab,var(--foreground) 4%,transparent) 1px,transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(to bottom,black,transparent 90%); }
 
+.calendar-paper {
+  --background: oklch(.982 .004 247);
+  --foreground: oklch(.3 .055 240);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(.3 .055 240);
+  --primary: oklch(.68 .13 210);
+  --primary-foreground: oklch(.22 .045 240);
+  --muted: oklch(.965 .01 240);
+  --muted-foreground: oklch(.5 .04 235);
+  --border: oklch(.89 .025 230);
+  --copper: oklch(.66 .15 54);
+  background: var(--card);
+  color: var(--foreground);
+}
+
 .page-enter { animation: page-enter .38s cubic-bezier(.2,.75,.2,1) both; }
 .theme-icon-enter { display: grid; place-items: center; animation: theme-icon-enter .28s cubic-bezier(.2,.8,.2,1) both; }
 
