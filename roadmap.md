@@ -14,4 +14,4 @@
 - [x] Replace oversized calendar project blocks with the selected compact cards
 - [x] Apply light mode consistently across every dashboard page
 - [x] Settings button to delete all appointments and empty the calendar
-- [ ] Smart Location & Service Area (GPS / map pin, service-area check, route- and traffic-aware slots) — waiting on user's map provider choice
+- [x] Smart Location & Service Area — free stack (OpenStreetMap/Nominatim + OSRM): GPS button, address search, draggable map pin, service-area gate (Västerås +40 km), server-side validation, lat/lng stored on jobs/projects. Route/traffic-aware slot ranking still open.
