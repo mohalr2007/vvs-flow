@@ -368,9 +368,9 @@ export default function Book() {
                 style={{ opacity: !ai && !manual ? 0.4 : 1 }}>Continue →</button>
             )}
             {step === 3 && (
-              <button onClick={goNext} disabled={!form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7}
+              <button onClick={goNext} disabled={!form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false}
                 className="btn-water flex-1 py-4 rounded-xl font-semibold"
-                style={{ opacity: !form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 ? 0.4 : 1 }}>Continue →</button>
+                style={{ opacity: !form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false ? 0.4 : 1 }}>Continue →</button>
             )}
             {step === 4 && !skipTime && (
               <button onClick={goNext} disabled={!selectedSlot} className="btn-water flex-1 py-4 rounded-xl font-semibold"
