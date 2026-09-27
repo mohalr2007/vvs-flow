@@ -85,8 +85,8 @@ export default function Overview() {
   const d = q.data;
   const c = d.counts;
   const alerts = [
-    c.review && { label: `${c.review} job${c.review > 1 ? 's' : ''} need review`, count: c.review, href: '/dashboard/jobs', color: '#E53935' },
-    c.assessment && { label: `${c.assessment} unusual request${c.assessment > 1 ? 's' : ''} need assessment`, count: c.assessment, href: '/dashboard/jobs', color: '#F59E0B' },
+    c.review && { label: `${c.review} job${c.review > 1 ? 's need' : ' needs'} review`, count: c.review, href: '/dashboard/jobs', color: '#E53935' },
+    c.assessment && { label: `${c.assessment} unusual request${c.assessment > 1 ? 's need' : ' needs'} assessment`, count: c.assessment, href: '/dashboard/jobs', color: '#F59E0B' },
     c.access && { label: `${c.access} appointment${c.access > 1 ? 's' : ''} need access confirmation`, count: c.access, href: '/dashboard/jobs', color: '#3B9AC4' },
     c.openSlots && { label: `${c.openSlots} cancelled slot${c.openSlots > 1 ? 's' : ''} can be recovered`, count: c.openSlots, href: '/dashboard/waitlist', color: '#0891B2' },
     c.projects && { label: `${c.projects} project${c.projects > 1 ? 's' : ''} awaiting your review`, count: c.projects, href: '/dashboard/projects', color: '#7B61FF' },

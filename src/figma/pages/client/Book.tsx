@@ -1,3 +1,4 @@
+import { Wrench, Hammer } from 'lucide-react';
 import { downloadIcs } from '@/lib/ics';
 import { useState } from 'react';
 import { Link, useNavigate } from '@/figma/router';
@@ -183,8 +184,8 @@ export default function Book() {
             <p style={{ color: '#6DA8C4', marginBottom: 32, fontSize: 15 }}>Choose the type of service.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               {[
-                { id: 'repair', title: 'Repair / Emergency', desc: 'Something is broken, leaking, or not working.', icon: '🔧' },
-                { id: 'install', title: 'New Installation', desc: 'A new fixture, appliance, or full renovation.', icon: '🏗' },
+                { id: 'repair', title: 'Repair / Emergency', desc: 'Something is broken, leaking, or not working.', icon: <Wrench size={28} color="#22D3EE" strokeWidth={1.6} /> },
+                { id: 'install', title: 'New Installation', desc: 'A new fixture, appliance, or full renovation.', icon: <Hammer size={28} color="#22D3EE" strokeWidth={1.6} /> },
               ].map(opt => (
                 <button key={opt.id} onClick={() => { setJobType(opt.id as 'repair' | 'install'); setLeaking(null); setAi(null); setAiError(''); }}
                   className="text-left p-6 rounded-xl transition-all duration-200"
