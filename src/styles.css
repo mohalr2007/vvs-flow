@@ -130,3 +130,371 @@ button, a, input, textarea, select { outline-offset: 3px; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
   main > section, [data-reveal] { animation: none !important; opacity: 1; transform: none; }
 }
+
+/* ===== Figma design system ===== */
+
+@theme {
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Outfit', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* ── Palette eau + plomberie ─────────────────────────── */
+  /* Fond : profondeur marine, comme de l'eau profonde     */
+  --color-bg:      #030E1C;
+  --color-surface: #071A2E;
+  --color-surface2: #0C2540;
+  --color-border:  rgba(8, 145, 178, 0.1);
+  --color-border-strong: rgba(8, 145, 178, 0.22);
+
+  /* Eau / primaire */
+  --color-water:      #0891B2;   /* cyan-600 — eau profonde          */
+  --color-water-mid:  #22D3EE;   /* cyan-400 — eau claire            */
+  --color-water-pale: #67E8F9;   /* cyan-300 — reflet lumineux       */
+  --color-water-dim:  rgba(8, 145, 178, 0.14);
+  --color-teal:       #0D9488;   /* teal-600 — eau de mer            */
+
+  /* Cuivre / accent chaleur (tuyaux en cuivre)            */
+  --color-copper:      #B87333;
+  --color-copper-warm: #D4883D;
+  --color-copper-dim:  rgba(184, 115, 51, 0.14);
+
+  /* Chrome / acier (robinets, outils)                     */
+  --color-steel:     #64748B;   /* slate-500                        */
+  --color-steel-dim: rgba(100,116,139,0.15);
+
+  /* Urgence / succès / warning */
+  --color-emergency:     #EF4444;
+  --color-emergency-dim: rgba(239,68,68,0.14);
+  --color-success:       #10B981;
+  --color-success-dim:   rgba(16,185,129,0.12);
+  --color-warning:       #F59E0B;
+
+  /* Texte — teinte eau froide */
+  --color-text:     #D9EEF7;
+  --color-text-mid: #6DA8C4;
+  --color-text-dim: #2E5B75;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  font-family: 'Outfit', system-ui, sans-serif;
+  background: #030E1C;
+  color: #D9EEF7;
+  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 0; height: 0; }
+:hover::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(8,145,178,0.3); border-radius: 3px; }
+
+/* ── Keyframes ─────────────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity:0; transform:translateY(24px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
+@keyframes scale-in {
+  from { opacity:0; transform:scale(0.95); }
+  to   { opacity:1; transform:scale(1); }
+}
+@keyframes slide-up {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes shimmer {
+  0%   { background-position:-200% 0; }
+  100% { background-position:200% 0; }
+}
+@keyframes pulse-ring {
+  0%   { transform:scale(0.8); opacity:1; }
+  100% { transform:scale(2.2); opacity:0; }
+}
+@keyframes water-flow {
+  0%,100% { transform:translateY(0) scaleY(1); }
+  50%     { transform:translateY(-4px) scaleY(1.05); }
+}
+@keyframes countdown-tick {
+  0%,100% { transform:scale(1); }
+  50%     { transform:scale(0.97); }
+}
+@keyframes ticker {
+  from { transform:rotate(0deg); }
+  to   { transform:rotate(360deg); }
+}
+@keyframes ripple {
+  0%   { transform:scale(1); opacity:0.6; }
+  100% { transform:scale(3); opacity:0; }
+}
+
+/* ── Utility classes ───────────────────────────────────── */
+.animate-fade-up  { animation:fade-up  0.5s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-fade-in  { animation:fade-in  0.4s ease both; }
+.animate-scale-in { animation:scale-in 0.35s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-slide-up { animation:slide-up 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+
+.delay-100 { animation-delay:100ms; }
+.delay-150 { animation-delay:150ms; }
+.delay-200 { animation-delay:200ms; }
+.delay-300 { animation-delay:300ms; }
+.delay-400 { animation-delay:400ms; }
+.delay-500 { animation-delay:500ms; }
+.delay-600 { animation-delay:600ms; }
+
+/* ── Skeleton ──────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg,
+    rgba(8,145,178,0.04) 0%,
+    rgba(8,145,178,0.10) 50%,
+    rgba(8,145,178,0.04) 100%);
+  background-size:200% 100%;
+  animation:shimmer 1.5s infinite;
+  border-radius:6px;
+}
+
+/* ── Glass card ────────────────────────────────────────── */
+.glass {
+  background: rgba(7,26,46,0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(8,145,178,0.12);
+}
+
+/* ── Bouton eau (primaire) ────────────────────────────── */
+.btn-water {
+  background: linear-gradient(135deg, #0891B2, #0EA5E9);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.btn-water::after {
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,0.18),transparent);
+  opacity:0;
+  transition:opacity 0.2s;
+}
+.btn-water:hover::after { opacity:1; }
+.btn-water:hover {
+  transform:translateY(-1px);
+  box-shadow:0 8px 28px rgba(8,145,178,0.45);
+}
+.btn-water:active { transform:translateY(0); }
+
+/* ── Bouton cuivre (accentué / prix) ─────────────────── */
+.btn-copper {
+  background: linear-gradient(135deg, #B87333, #D4883D);
+  color: #030E1C;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.btn-copper::after {
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,0.15),transparent);
+  opacity:0;
+  transition:opacity 0.2s;
+}
+.btn-copper:hover::after { opacity:1; }
+.btn-copper:hover {
+  transform:translateY(-1px);
+  box-shadow:0 8px 24px rgba(184,115,51,0.4);
+}
+.btn-copper:active { transform:translateY(0); }
+
+/* ── Bouton urgence ────────────────────────────────────── */
+.btn-emergency {
+  background: linear-gradient(135deg, #EF4444, #F87171);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-emergency:hover {
+  transform:translateY(-1px);
+  box-shadow:0 8px 28px rgba(239,68,68,0.45);
+}
+
+/* ── Bouton ghost ──────────────────────────────────────── */
+.btn-ghost {
+  background: transparent;
+  color: #D9EEF7;
+  border: 1px solid rgba(8,145,178,0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-ghost:hover {
+  background: rgba(8,145,178,0.07);
+  border-color: rgba(8,145,178,0.35);
+}
+
+/* ── Input ─────────────────────────────────────────────── */
+.vvs-input {
+  background: rgba(8,145,178,0.05);
+  border: 1px solid rgba(8,145,178,0.15);
+  color: inherit;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s, color 0.2s;
+  outline: none;
+  width: 100%;
+}
+.vvs-input:focus {
+  border-color: rgba(8,145,178,0.55);
+  box-shadow: 0 0 0 3px rgba(8,145,178,0.12);
+}
+.vvs-input::placeholder { color: inherit; opacity: 0.45; }
+
+/* ── Sticky bottom bar ─────────────────────────────────── */
+.sticky-bar {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, #030E1C 70%, transparent);
+  padding: 16px 24px 28px;
+  z-index: 50;
+}
+
+/* ── Badge/tag ─────────────────────────────────────────── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Divider eau ────────────────────────────────────────── */
+.water-line {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #0891B2, #22D3EE, #0891B2, transparent);
+  opacity: 0.4;
+}
+
+/* ── Divider cuivre ─────────────────────────────────────── */
+.copper-line {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #B87333, transparent);
+  opacity: 0.35;
+}
+
+/* ── Progress wizard ────────────────────────────────────── */
+.step-node {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+/* ── Slot card ─────────────────────────────────────────── */
+.slot-card {
+  border: 1px solid rgba(8,145,178,0.12);
+  border-radius: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(8,145,178,0.03);
+}
+.slot-card:hover {
+  border-color: rgba(8,145,178,0.4);
+  background: rgba(8,145,178,0.07);
+}
+.slot-card.selected {
+  border-color: #0891B2;
+  background: rgba(8,145,178,0.12);
+  box-shadow: 0 0 0 3px rgba(8,145,178,0.15);
+}
+
+/* ── Dashboard sidebar ─────────────────────────────────── */
+.dash-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #2E5B75;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  margin: 0 8px;
+}
+.dash-nav-item:hover {
+  background: rgba(8,145,178,0.08);
+  color: #D9EEF7;
+}
+.dash-nav-item.active {
+  background: rgba(8,145,178,0.14);
+  color: #22D3EE;
+}
+
+/* ── Water ripple effect ────────────────────────────────── */
+.water-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.water-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 100%,
+    rgba(8,145,178,0.15) 0%,
+    rgba(34,211,238,0.05) 50%,
+    transparent 70%);
+  pointer-events: none;
+}
+
+/* ── Noise texture overlay ──────────────────────────────── */
+.noise {
+  position: relative;
+}
+.noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 0;
+}
