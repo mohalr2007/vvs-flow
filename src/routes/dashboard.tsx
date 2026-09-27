@@ -1,5 +1,5 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { OwnerShell } from "@/components/vvs/owner-shell";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { DashThemeProvider } from "@/figma/context/DashTheme";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/dashboard")({
@@ -9,5 +9,9 @@ export const Route = createFileRoute("/dashboard")({
     if (error || !data.user) throw redirect({ to: "/login" });
     return { user: data.user };
   },
-  component: OwnerShell,
+  component: () => (
+    <DashThemeProvider>
+      <Outlet />
+    </DashThemeProvider>
+  ),
 });

@@ -26,7 +26,7 @@ import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settin
 import { Route as DashboardWaitlistRouteImport } from './routes/dashboard.waitlist'
 import { Route as OfferTokenRouteImport } from './routes/offer.$token'
 import { Route as RescheduleTokenRouteImport } from './routes/reschedule.$token'
-import { Route as DashboardJobsJobIdRouteImport } from './routes/dashboard.jobs.$jobId'
+import { Route as DashboardJobsJobIdRouteImport } from './routes/dashboard.jobs_.$jobId'
 import { Route as DashboardProjectsProjectIdRouteImport } from './routes/dashboard.projects_.$projectId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -115,9 +115,9 @@ const RescheduleTokenRoute = RescheduleTokenRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardJobsJobIdRoute = DashboardJobsJobIdRouteImport.update({
-  id: '/$jobId',
-  path: '/$jobId',
-  getParentRoute: () => DashboardJobsRoute,
+  id: '/jobs_/$jobId',
+  path: '/jobs/$jobId',
+  getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardProjectsProjectIdRoute =
   DashboardProjectsProjectIdRouteImport.update({
@@ -135,7 +135,7 @@ export interface FileRoutesByFullPath {
   '/access/$token': typeof AccessTokenRoute
   '/dashboard/calendar': typeof DashboardCalendarRoute
   '/dashboard/inbox': typeof DashboardInboxRoute
-  '/dashboard/jobs': typeof DashboardJobsRouteWithChildren
+  '/dashboard/jobs': typeof DashboardJobsRoute
   '/dashboard/leads': typeof DashboardLeadsRoute
   '/dashboard/projects': typeof DashboardProjectsRoute
   '/dashboard/rot': typeof DashboardRotRoute
@@ -155,7 +155,7 @@ export interface FileRoutesByTo {
   '/access/$token': typeof AccessTokenRoute
   '/dashboard/calendar': typeof DashboardCalendarRoute
   '/dashboard/inbox': typeof DashboardInboxRoute
-  '/dashboard/jobs': typeof DashboardJobsRouteWithChildren
+  '/dashboard/jobs': typeof DashboardJobsRoute
   '/dashboard/leads': typeof DashboardLeadsRoute
   '/dashboard/projects': typeof DashboardProjectsRoute
   '/dashboard/rot': typeof DashboardRotRoute
@@ -177,7 +177,7 @@ export interface FileRoutesById {
   '/access/$token': typeof AccessTokenRoute
   '/dashboard/calendar': typeof DashboardCalendarRoute
   '/dashboard/inbox': typeof DashboardInboxRoute
-  '/dashboard/jobs': typeof DashboardJobsRouteWithChildren
+  '/dashboard/jobs': typeof DashboardJobsRoute
   '/dashboard/leads': typeof DashboardLeadsRoute
   '/dashboard/projects': typeof DashboardProjectsRoute
   '/dashboard/rot': typeof DashboardRotRoute
@@ -186,7 +186,7 @@ export interface FileRoutesById {
   '/offer/$token': typeof OfferTokenRoute
   '/reschedule/$token': typeof RescheduleTokenRoute
   '/dashboard/': typeof DashboardIndexRoute
-  '/dashboard/jobs/$jobId': typeof DashboardJobsJobIdRoute
+  '/dashboard/jobs_/$jobId': typeof DashboardJobsJobIdRoute
   '/dashboard/projects_/$projectId': typeof DashboardProjectsProjectIdRoute
 }
 export interface FileRouteTypes {
@@ -250,7 +250,7 @@ export interface FileRouteTypes {
     | '/offer/$token'
     | '/reschedule/$token'
     | '/dashboard/'
-    | '/dashboard/jobs/$jobId'
+    | '/dashboard/jobs_/$jobId'
     | '/dashboard/projects_/$projectId'
   fileRoutesById: FileRoutesById
 }
@@ -386,12 +386,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RescheduleTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/jobs/$jobId': {
-      id: '/dashboard/jobs/$jobId'
-      path: '/$jobId'
+    '/dashboard/jobs_/$jobId': {
+      id: '/dashboard/jobs_/$jobId'
+      path: '/jobs/$jobId'
       fullPath: '/dashboard/jobs/$jobId'
       preLoaderRoute: typeof DashboardJobsJobIdRouteImport
-      parentRoute: typeof DashboardJobsRoute
+      parentRoute: typeof DashboardRoute
     }
     '/dashboard/projects_/$projectId': {
       id: '/dashboard/projects_/$projectId'
@@ -403,41 +403,31 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface DashboardJobsRouteChildren {
-  DashboardJobsJobIdRoute: typeof DashboardJobsJobIdRoute
-}
-
-const DashboardJobsRouteChildren: DashboardJobsRouteChildren = {
-  DashboardJobsJobIdRoute: DashboardJobsJobIdRoute,
-}
-
-const DashboardJobsRouteWithChildren = DashboardJobsRoute._addFileChildren(
-  DashboardJobsRouteChildren,
-)
-
 interface DashboardRouteChildren {
   DashboardCalendarRoute: typeof DashboardCalendarRoute
   DashboardInboxRoute: typeof DashboardInboxRoute
-  DashboardJobsRoute: typeof DashboardJobsRouteWithChildren
+  DashboardJobsRoute: typeof DashboardJobsRoute
   DashboardLeadsRoute: typeof DashboardLeadsRoute
   DashboardProjectsRoute: typeof DashboardProjectsRoute
   DashboardRotRoute: typeof DashboardRotRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardWaitlistRoute: typeof DashboardWaitlistRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardJobsJobIdRoute: typeof DashboardJobsJobIdRoute
   DashboardProjectsProjectIdRoute: typeof DashboardProjectsProjectIdRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardCalendarRoute: DashboardCalendarRoute,
   DashboardInboxRoute: DashboardInboxRoute,
-  DashboardJobsRoute: DashboardJobsRouteWithChildren,
+  DashboardJobsRoute: DashboardJobsRoute,
   DashboardLeadsRoute: DashboardLeadsRoute,
   DashboardProjectsRoute: DashboardProjectsRoute,
   DashboardRotRoute: DashboardRotRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardWaitlistRoute: DashboardWaitlistRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardJobsJobIdRoute: DashboardJobsJobIdRoute,
   DashboardProjectsProjectIdRoute: DashboardProjectsProjectIdRoute,
 }
 

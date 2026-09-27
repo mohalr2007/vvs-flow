@@ -1,0 +1,206 @@
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useServerFn } from '@tanstack/react-start';
+import DashboardLayout from '@/figma/components/DashboardLayout';
+import { useDashTheme } from '@/figma/context/DashTheme';
+import { ownerService } from '@/lib/services';
+import type { Settings } from '@/lib/vvs-data';
+
+const ALL_DAYS: { label: string; value: number }[] = [
+  { label: 'Mon', value: 1 }, { label: 'Tue', value: 2 }, { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 }, { label: 'Fri', value: 5 }, { label: 'Sat', value: 6 }, { label: 'Sun', value: 0 },
+];
+
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Nothing has been changed.');
+const hourStr = (h: number) => `${String(h).padStart(2, '0')}:00`;
+const parseHour = (s: string) => Number(s.split(':')[0]) || 0;
+
+export default function SettingsPage() {
+  const { tokens: T } = useDashTheme();
+  const get = useServerFn(ownerService.settings);
+  const q = useQuery({ queryKey: ['settings'], queryFn: () => get() });
+
+  return (
+    <DashboardLayout>
+      <div className="p-4 md:p-8 max-w-2xl mx-auto animate-fade-up">
+        <div className="mb-8">
+          <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 30, fontWeight: 300, color: T.text, marginBottom: 4 }}>Settings</h1>
+          <p style={{ fontSize: 13, color: T.textMid }}>Business configuration — this drives all client-facing slot availability.</p>
+        </div>
+
+        {q.isPending ? (
+          <p style={{ fontSize: 13, color: T.textMid }}>Loading settings…</p>
+        ) : q.isError || !q.data ? (
+          <div>
+            <p style={{ fontSize: 13, color: '#E53935' }}>{q.error instanceof Error ? q.error.message : 'Settings could not be loaded.'}</p>
+            <button onClick={() => q.refetch()} className="btn-water mt-3 px-4 py-2 rounded-lg text-sm">Try again</button>
+          </div>
+        ) : (
+          <SettingsForm s={q.data} />
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}
+
+function SettingsForm({ s }: { s: Settings }) {
+  const { tokens: T } = useDashTheme();
+  const save = useServerFn(ownerService.saveSettings);
+  const reset = useServerFn(ownerService.reset);
+  const advance = useServerFn(ownerService.advance);
+  const qc = useQueryClient();
+  const [f, setF] = useState(s);
+  const [busy, setBusy] = useState(false);
+  const [demoBusy, setDemoBusy] = useState('');
+  const [saved, setSaved] = useState(false);
+  useEffect(() => setF(s), [s]);
+
+  const num = (k: keyof Settings) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: Number(e.target.value) } as Settings);
+  const toggleRestDay = (day: number) => {
+    setF(cur => ({ ...cur, rest_days: cur.rest_days.includes(day) ? cur.rest_days.filter(d => d !== day) : [...cur.rest_days, day] }));
+  };
+
+  const handleSave = async () => {
+    setBusy(true);
+    try {
+      const { id: _i, clock_offset_minutes: _c, ...rest } = f;
+      await save({ data: rest });
+      await qc.invalidateQueries({ queryKey: ['settings'] });
+      setSaved(true);
+      toast.success('Settings saved');
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e) {
+      toast.error(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runDemo = async (label: string, fn: () => Promise<unknown>) => {
+    setDemoBusy(label);
+    try { await fn(); await qc.invalidateQueries(); toast.success(`${label} done`); }
+    catch (e) { toast.error(errMsg(e)); }
+    finally { setDemoBusy(''); }
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Business */}
+      <div className="p-6 rounded-2xl" style={{ background: T.card, border: `1px solid ${T.cardBorder}` }}>
+        <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: 17, color: T.text, marginBottom: 16, fontWeight: 400 }}>Business</h3>
+        <div className="flex flex-col gap-4">
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Business name</label>
+            <input className="vvs-input" value={f.business_name} onChange={e => setF({ ...f, business_name: e.target.value })} style={{ background: T.input }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Owner name</label>
+            <input className="vvs-input" value={f.owner_name} onChange={e => setF({ ...f, owner_name: e.target.value })} style={{ background: T.input }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Service area</label>
+            <input className="vvs-input" value={f.service_area} onChange={e => setF({ ...f, service_area: e.target.value })} style={{ background: T.input }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Hourly rate (SEK)</label>
+            <input type="number" className="vvs-input" value={f.hourly_rate} onChange={num('hourly_rate')} style={{ background: T.input }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Hours */}
+      <div className="p-6 rounded-2xl" style={{ background: T.card, border: `1px solid ${T.cardBorder}` }}>
+        <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: 17, color: T.text, marginBottom: 16, fontWeight: 400 }}>Working hours</h3>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Work day starts</label>
+            <input type="time" className="vvs-input" value={hourStr(f.work_start_hour)} onChange={e => setF({ ...f, work_start_hour: parseHour(e.target.value) })} style={{ background: T.input }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Work day ends</label>
+            <input type="time" className="vvs-input" value={hourStr(f.work_end_hour)} onChange={e => setF({ ...f, work_end_hour: parseHour(e.target.value) })} style={{ background: T.input }} />
+          </div>
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
+            Emergency buffer (min before/after)
+          </label>
+          <input type="number" className="vvs-input" value={f.emergency_buffer_min} onChange={num('emergency_buffer_min')} style={{ background: T.input }} />
+        </div>
+      </div>
+
+      {/* Rest days */}
+      <div className="p-6 rounded-2xl" style={{ background: T.card, border: `1px solid ${T.cardBorder}` }}>
+        <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: 17, color: T.text, marginBottom: 6, fontWeight: 400 }}>Rest days</h3>
+        <p style={{ fontSize: 13, color: T.textMid, marginBottom: 16 }}>No slots will be shown on rest days.</p>
+        <div className="flex gap-2 flex-wrap">
+          {ALL_DAYS.map(day => {
+            const on = f.rest_days.includes(day.value);
+            return (
+              <button
+                key={day.value}
+                onClick={() => toggleRestDay(day.value)}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                style={{
+                  background: on ? 'rgba(229,57,53,0.12)' : T.input,
+                  color: on ? '#E53935' : T.textMid,
+                  border: `1px solid ${on ? 'rgba(229,57,53,0.3)' : T.cardBorder}`,
+                  cursor: 'pointer',
+                }}
+              >
+                {day.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Demo controls */}
+      <div className="p-4 rounded-xl" style={{ background: T.input, border: `1px dashed ${T.cardBorderStrong}` }}>
+        <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#0891B2', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+          Demo mode active
+        </div>
+        <p style={{ fontSize: 12, color: T.textMid, lineHeight: 1.5, marginBottom: 12 }}>
+          Simulated clock and data — separate from real business actions.{f.clock_offset_minutes !== 0 ? ` Demo clock is ${Math.round(f.clock_offset_minutes / 60)}h ahead of real time.` : ''}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => { if (confirm('Reset all demo data?')) void runDemo('Reset', () => reset()); }}
+            disabled={!!demoBusy}
+            className="px-3 py-2 rounded-lg text-xs"
+            style={{ background: T.cardAlt, color: T.textMid, border: `1px solid ${T.cardBorder}`, cursor: 'pointer', opacity: demoBusy ? 0.6 : 1 }}
+          >
+            {demoBusy === 'Reset' ? 'Resetting…' : '↺ Reset Demo'}
+          </button>
+          <button
+            onClick={() => void runDemo('Advance 15 min', () => advance({ data: { minutes: 15 } }))}
+            disabled={!!demoBusy}
+            className="px-3 py-2 rounded-lg text-xs"
+            style={{ background: T.cardAlt, color: T.textMid, border: `1px solid ${T.cardBorder}`, cursor: 'pointer', opacity: demoBusy ? 0.6 : 1 }}
+          >
+            {demoBusy === 'Advance 15 min' ? 'Advancing…' : 'Advance 15 min'}
+          </button>
+          <button
+            onClick={() => void runDemo('Advance 24 hours', () => advance({ data: { minutes: 1440 } }))}
+            disabled={!!demoBusy}
+            className="px-3 py-2 rounded-lg text-xs"
+            style={{ background: T.cardAlt, color: T.textMid, border: `1px solid ${T.cardBorder}`, cursor: 'pointer', opacity: demoBusy ? 0.6 : 1 }}
+          >
+            {demoBusy === 'Advance 24 hours' ? 'Advancing…' : 'Advance 24 hours'}
+          </button>
+        </div>
+      </div>
+
+      {/* Save button */}
+      <button
+        onClick={handleSave}
+        disabled={busy || f.rest_days.length > 6 || f.work_end_hour <= f.work_start_hour}
+        className="btn-copper py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
+        style={{ opacity: busy ? 0.7 : 1 }}
+      >
+        {busy ? 'Saving…' : saved ? '✓ Changes saved' : 'Save changes'}
+      </button>
+    </div>
+  );
+}
