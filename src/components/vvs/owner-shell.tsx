@@ -2,7 +2,7 @@ import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-route
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { LayoutDashboard, BriefcaseBusiness, CalendarDays, ListFilter, Users, FolderKanban, Inbox, ReceiptText, Settings, Menu, LogOut, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, BriefcaseBusiness, CalendarDays, ListFilter, Users, FolderKanban, Inbox, ReceiptText, Settings, Menu, LogOut, ShieldAlert, PanelLeftClose, PanelLeftOpen, MoreHorizontal } from "lucide-react";
 import { Brand } from "./brand";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,8 +26,8 @@ const items = [
   { to: "/dashboard/settings", label: "Settings", exact: false, icon: Settings },
 ] as const;
 
-function NavItems({ mobile = false }: { mobile?: boolean }) {
-  return <nav className={mobile ? "space-y-1" : "flex-1 space-y-1 p-3"}>{items.map(({ to, label, icon: Icon, exact }) => <Link key={to} to={to} activeOptions={{ exact }} className="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-owner-foreground/65 transition-colors hover:bg-owner-foreground/8 hover:text-owner-foreground" activeProps={{ className: "bg-owner-foreground/12 text-owner-foreground" }}><Icon className="size-[18px] shrink-0"/><span>{label}</span></Link>)}</nav>;
+function NavItems({ mobile = false, collapsed = false }: { mobile?: boolean; collapsed?: boolean }) {
+  return <nav className={mobile ? "space-y-1" : "flex-1 space-y-1 p-3"}>{items.map(({ to, label, icon: Icon, exact }) => <Link key={to} to={to} activeOptions={{ exact }} title={collapsed ? label : undefined} className={`relative flex min-h-11 items-center rounded-lg text-sm font-medium text-owner-foreground/45 transition-colors hover:bg-owner-foreground/6 hover:text-owner-foreground ${collapsed ? "justify-center px-2" : "gap-3 px-3"}`} activeProps={{ className: "bg-primary/10 text-primary after:absolute after:right-0 after:h-5 after:w-0.5 after:rounded-l after:bg-primary" }}><Icon className="size-[18px] shrink-0"/>{!collapsed && <span>{label}</span>}</Link>)}</nav>;
 }
 
 function useSignOut() {
@@ -52,24 +52,25 @@ export function OwnerShell() {
   const getStatus = useServerFn(ownerService.status);
   const status = useQuery({ queryKey: ["owner-status"], queryFn: () => getStatus() });
   const signOut = useSignOut();
+  const [collapsed, setCollapsed] = useState(false);
   if (status.isPending) return <div className="mx-auto max-w-5xl p-8"><PageSkeleton/></div>;
   if (status.isError) return <div className="grid min-h-screen place-items-center p-6 text-center"><div><p className="font-semibold">The workspace could not be opened.</p><p className="mt-2 text-sm text-muted-foreground">{errMsg(status.error)}</p><Button className="mt-4" onClick={() => status.refetch()}>Try again</Button></div></div>;
   if (!status.data.isOwner) return <AccessGate claimable={status.data.claimable} />;
   const email = user?.email ?? "";
-  return <div className="min-h-screen bg-background lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[240px] flex-col border-r border-owner-foreground/8 bg-owner lg:flex">
-      <div className="border-b border-owner-foreground/10 p-5"><Brand inverted /></div><NavItems />
-      <div className="border-t border-owner-foreground/10 p-3"><button onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-sm text-owner-foreground/65 hover:bg-owner-foreground/8"><LogOut className="size-[18px]"/>Sign out</button></div>
+  return <div className={`min-h-screen bg-background transition-[grid-template-columns] lg:grid ${collapsed ? "lg:grid-cols-[64px_minmax(0,1fr)]" : "lg:grid-cols-[240px_minmax(0,1fr)]"}`}>
+    <aside className={`fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-primary/10 bg-owner transition-[width] lg:flex ${collapsed ? "w-16" : "w-60"}`}>
+      <div className={`flex h-16 items-center border-b border-owner-foreground/10 ${collapsed ? "justify-center" : "justify-between px-3"}`}><Brand inverted compact={collapsed}/><Button size="icon" variant="ghost" className="text-owner-foreground/45 hover:bg-owner-foreground/10 hover:text-owner-foreground" onClick={() => setCollapsed(v => !v)} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>{collapsed ? <PanelLeftOpen/> : <PanelLeftClose/>}</Button></div><NavItems collapsed={collapsed}/>
+      <div className="border-t border-owner-foreground/10 p-3"><Button onClick={signOut} variant="ghost" className={`w-full text-owner-foreground/50 hover:bg-owner-foreground/8 hover:text-owner-foreground ${collapsed ? "px-2" : "justify-start"}`} title={collapsed ? "Sign out" : undefined}><LogOut/>{!collapsed && "Sign out"}</Button></div>
     </aside>
     <div className="min-w-0 lg:col-start-2">
-      <header className="sticky top-0 z-30 grid h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b bg-background/95 px-4 backdrop-blur-xl lg:px-8">
+      <header className="sticky top-0 z-30 grid h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-primary/10 bg-background/90 px-4 backdrop-blur-xl lg:px-8">
         <Sheet><SheetTrigger asChild><Button size="icon" variant="ghost" className="lg:hidden" aria-label="Open navigation"><Menu/></Button></SheetTrigger><SheetContent side="left" className="w-72 bg-owner text-owner-foreground"><div className="mb-6"><Brand inverted/></div><NavItems mobile /><button onClick={signOut} className="mt-4 flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-sm text-owner-foreground/65"><LogOut className="size-[18px]"/>Sign out</button></SheetContent></Sheet>
         <span className="truncate text-sm font-semibold lg:hidden">{current}</span>
-        <div className="hidden min-w-0 lg:block"><p className="truncate text-sm font-semibold">Ekström VVS</p><p className="text-xs text-muted-foreground">Operations workspace</p></div>
+        <div className="hidden min-w-0 lg:block"><p className="font-display truncate text-sm">VVS Flow</p><p className="figma-label text-[9px] text-primary">Ekström VVS</p></div>
         <div className="flex items-center gap-2"><span className="hidden max-w-48 truncate text-xs text-muted-foreground sm:inline">{email}</span><ThemeToggle/><span className="grid size-9 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground" title={email}>{initials(email.split("@")[0]?.replace(/[._]/g, " ") ?? "O")}</span></div>
       </header>
       <main className="mx-auto max-w-[1520px] px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8"><Outlet /></main>
     </div>
-    <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t bg-background px-1 pb-[env(safe-area-inset-bottom)] lg:hidden">{items.slice(0,5).map(({to,label,icon:Icon,exact}) => <Link key={to} to={to} activeOptions={{exact}} className="flex min-h-16 flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground" activeProps={{className:"text-primary"}}><Icon className="size-5"/><span>{label}</span></Link>)}</nav>
+    <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t border-primary/10 bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">{items.slice(0,5).map(({to,label,icon:Icon,exact}) => <Link key={to} to={to} activeOptions={{exact}} className="figma-label relative flex min-h-16 flex-col items-center justify-center gap-1 text-[8px] text-muted-foreground" activeProps={{className:"text-primary before:absolute before:top-0 before:h-0.5 before:w-6 before:bg-primary"}}><Icon className="size-5"/><span>{label}</span></Link>)}<Link to="/dashboard/settings" className="figma-label flex min-h-16 flex-col items-center justify-center gap-1 text-[8px] text-muted-foreground"><MoreHorizontal className="size-5"/><span>More</span></Link></nav>
   </div>;
 }
