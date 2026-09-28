@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from '@/figma/router';
 import { supabase } from '@/integrations/supabase/client';
+import plumbingBathroom from '@/assets/plumbing-bathroom.jpg';
 
 export default function Login() {
   const [mode, setMode] = useState<'signin' | 'register'>('signin');
@@ -35,7 +36,7 @@ export default function Login() {
         style={{ background: '#050F1E', borderRight: '1px solid rgba(8,145,178,0.08)' }}>
         <div className="absolute inset-0">
           <img
-            src="https://images.unsplash.com/photo-1622331589387-f78a7ced8dff?w=960&h=1200&fit=crop&auto=format"
+            src={plumbingBathroom}
             alt=""
             className="w-full h-full object-cover"
             style={{ opacity: 0.72 }}

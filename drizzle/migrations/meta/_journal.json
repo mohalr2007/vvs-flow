@@ -43,6 +43,13 @@
       "when": 1790584153349,
       "tag": "0005_route_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790620377946,
+      "tag": "0006_demo_seed_coordinates",
+      "breakpoints": true
     }
   ]
 }

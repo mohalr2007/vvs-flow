@@ -3,6 +3,8 @@ import ClientNav from '@/figma/components/ClientNav';
 import { useEffect, useRef, useState } from 'react';
 import heroBg from '@/figma/assets/hero-bg.jpg';
 import quoteBg from '@/figma/assets/quote-bg.jpg';
+import plumberHero from '@/assets/ekstrom-plumber-hero.jpg';
+import plumbingInspection from '@/assets/plumbing-inspection.jpg';
 
 function Counter({ target, suffix = '' }: { target: number | string; suffix?: string }) {
   const [val, setVal] = useState(typeof target === 'number' ? 0 : target);
@@ -136,7 +138,7 @@ export default function Home() {
         <div className="absolute inset-0">
           {/* Plombier en train de travailler */}
           <img
-            src="https://images.unsplash.com/photo-1676210134190-3f2c0d5cf58d?w=1920&h=900&fit=crop&auto=format"
+            src={plumberHero}
             alt="Plumber fixing water heater"
             className="w-full h-full object-cover"
             style={{ opacity: 0.1 }}
@@ -249,7 +251,7 @@ export default function Home() {
               <div style={{ borderRadius: 20, overflow: 'hidden', aspectRatio: '4/3', position: 'relative' }}>
                 {/* Goutte d'eau sur tuyau en laiton */}
                 <img
-                  src="https://images.unsplash.com/photo-1596394723269-b2cbca4e6313?w=800&h=600&fit=crop&auto=format"
+                  src={plumbingInspection}
                   alt="Water drop on brass pipe"
                   className="w-full h-full object-cover"
                 />
