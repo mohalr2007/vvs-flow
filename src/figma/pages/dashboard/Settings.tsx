@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
 import DashboardLayout from '@/figma/components/DashboardLayout';
-import { useDashTheme } from '@/figma/context/DashTheme';
+import { useDashTheme, type ThemeTokens } from '@/figma/context/DashTheme';
 import { ownerService } from '@/lib/services';
+import { searchAddress, locatePin } from '@/lib/location.functions';
 import type { Settings } from '@/lib/vvs-data';
 
 const ALL_DAYS: { label: string; value: number }[] = [
@@ -15,6 +16,84 @@ const ALL_DAYS: { label: string; value: number }[] = [
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Nothing has been changed.');
 const hourStr = (h: number) => `${String(h).padStart(2, '0')}:00`;
 const parseHour = (s: string) => Number(s.split(':')[0]) || 0;
+
+type Place = { address: string; lat: number | null; lng: number | null };
+
+// Address search + geocode for the owner's home / custom day endpoints (Nominatim, server-side).
+function PlaceSearchField({ label, hint, value, T, onPick }: {
+  label: string; hint: string; T: ThemeTokens; value: Place;
+  onPick: (p: Place) => void;
+}) {
+  const [q, setQ] = useState(value.address);
+  const [results, setResults] = useState<Array<{ label: string; lat: number; lng: number }>>([]);
+  const [open, setOpen] = useState(false);
+  const [meta, setMeta] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => setQ(value.address), [value.address]);
+
+  const onType = (text: string) => {
+    setQ(text);
+    // Typing invalidates the stored coordinates until a result is picked (same rule as LocationPicker).
+    if (text !== value.address) onPick({ address: text, lat: null, lng: null });
+    if (timer.current) clearTimeout(timer.current);
+    if (text.trim().length < 3) { setResults([]); setOpen(false); return; }
+    timer.current = setTimeout(async () => {
+      setBusy(true);
+      try {
+        const { results: r } = await searchAddress({ data: { query: text } });
+        setResults(r); setOpen(r.length > 0);
+      } catch { setResults([]); setOpen(false); }
+      finally { setBusy(false); }
+    }, 350);
+  };
+
+  const pick = async (r: { label: string; lat: number; lng: number }) => {
+    setQ(r.label); setOpen(false); setResults([]);
+    onPick({ address: r.label, lat: r.lat, lng: r.lng });
+    try {
+      const info = await locatePin({ data: { lat: r.lat, lng: r.lng } });
+      setMeta(info.driveMinutes != null ? `~${info.driveMinutes} min drive from Västerås centre` : `${info.distanceKm} km from Västerås centre`);
+    } catch { setMeta(null); }
+  };
+
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <input
+          className="vvs-input"
+          value={q}
+          placeholder="Search address…"
+          onChange={e => onType(e.target.value)}
+          onFocus={() => { if (results.length) setOpen(true); }}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          style={{ background: T.input }}
+        />
+        {busy && <span style={{ position: 'absolute', right: 12, top: 10, fontSize: 11, color: T.textMid }}>…</span>}
+        {open && (
+          <div style={{ position: 'absolute', zIndex: 20, left: 0, right: 0, top: 'calc(100% + 4px)', background: T.card, border: `1px solid ${T.cardBorderStrong}`, borderRadius: 10, overflow: 'hidden', boxShadow: '0 12px 32px rgba(0,0,0,0.35)' }}>
+            {results.map(r => (
+              <button
+                key={`${r.lat},${r.lng}`}
+                type="button"
+                onMouseDown={e => { e.preventDefault(); void pick(r); }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', fontSize: 12.5, color: T.text, background: 'transparent', border: 'none', borderBottom: `1px solid ${T.cardBorder}`, cursor: 'pointer' }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <p style={{ fontSize: 11.5, color: T.textMid, marginTop: 5 }}>
+        {value.lat != null && value.lng != null
+          ? meta ?? 'Location saved — coordinates stored.'
+          : hint}
+      </p>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { tokens: T } = useDashTheme();
@@ -61,6 +140,13 @@ function SettingsForm({ s }: { s: Settings }) {
   const toggleRestDay = (day: number) => {
     setF(cur => ({ ...cur, rest_days: cur.rest_days.includes(day) ? cur.rest_days.filter(d => d !== day) : [...cur.rest_days, day] }));
   };
+  const needsHome = (f.day_start_mode === 'home' || f.day_end_mode === 'home') && (f.home_lat == null || f.home_lng == null);
+  const needsCustom = (f.day_start_mode === 'custom' || f.day_end_mode === 'custom') && (f.custom_lat == null || f.custom_lng == null);
+  const routeWarning = needsHome
+    ? 'Pick a home location below before using it as a start or end point.'
+    : needsCustom
+      ? 'Pick a custom location below before using it as a start or end point.'
+      : null;
 
   const handleSave = async () => {
     setBusy(true);
@@ -157,6 +243,60 @@ function SettingsForm({ s }: { s: Settings }) {
         </div>
       </div>
 
+      {/* Route & day planning */}
+      <div className="p-6 rounded-2xl" style={{ background: T.card, border: `1px solid ${T.cardBorder}` }}>
+        <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: 17, color: T.text, marginBottom: 6, fontWeight: 400 }}>Route &amp; day planning</h3>
+        <p style={{ fontSize: 13, color: T.textMid, marginBottom: 16 }}>
+          Where the driving day starts and ends, and the minimum driving slack around each job.
+          Customers are only offered times the route can actually reach.
+        </p>
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Day starts at</label>
+              <select className="vvs-input" value={f.day_start_mode} onChange={e => setF({ ...f, day_start_mode: e.target.value as Settings['day_start_mode'] })} style={{ background: T.input }}>
+                <option value="business">Business location</option>
+                <option value="home">Home</option>
+                <option value="custom">Custom point</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Day ends at</label>
+              <select className="vvs-input" value={f.day_end_mode} onChange={e => setF({ ...f, day_end_mode: e.target.value as Settings['day_end_mode'] })} style={{ background: T.input }}>
+                <option value="none">No end point</option>
+                <option value="business">Business location</option>
+                <option value="home">Home</option>
+                <option value="custom">Custom point</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
+              Route buffer (min between jobs)
+            </label>
+            <input type="number" min={0} max={120} className="vvs-input" value={f.route_buffer_min} onChange={num('route_buffer_min')} style={{ background: T.input }} />
+            <p style={{ fontSize: 11.5, color: T.textMid, marginTop: 5 }}>Free minutes kept around every appointment for parking, unpacking and delays.</p>
+          </div>
+          <PlaceSearchField
+            label="Home location"
+            hint="Search where Mats starts the day when “Day starts/ends at” is Home."
+            T={T}
+            value={{ address: f.home_address, lat: f.home_lat, lng: f.home_lng }}
+            onPick={p => setF({ ...f, home_address: p.address, home_lat: p.lat, home_lng: p.lng })}
+          />
+          <PlaceSearchField
+            label="Custom location"
+            hint="Search a custom start/end point (e.g. a depot or storage)."
+            T={T}
+            value={{ address: f.custom_address, lat: f.custom_lat, lng: f.custom_lng }}
+            onPick={p => setF({ ...f, custom_address: p.address, custom_lat: p.lat, custom_lng: p.lng })}
+          />
+          {routeWarning && (
+            <p style={{ fontSize: 12, color: '#E53935' }}>{routeWarning}</p>
+          )}
+        </div>
+      </div>
+
       {/* Demo controls */}
       <div className="p-4 rounded-xl" style={{ background: T.input, border: `1px dashed ${T.cardBorderStrong}` }}>
         <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#0891B2', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
@@ -204,7 +344,7 @@ function SettingsForm({ s }: { s: Settings }) {
       {/* Save button */}
       <button
         onClick={handleSave}
-        disabled={busy || f.rest_days.length > 6 || f.work_end_hour <= f.work_start_hour}
+        disabled={busy || f.rest_days.length > 6 || f.work_end_hour <= f.work_start_hour || !!routeWarning}
         className="btn-copper py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
         style={{ opacity: busy ? 0.7 : 1 }}
       >
