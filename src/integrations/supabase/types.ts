@@ -344,11 +344,20 @@ export type Database = {
         Row: {
           business_name: string
           clock_offset_minutes: number
+          custom_address: string
+          custom_lat: number | null
+          custom_lng: number | null
+          day_end_mode: string
+          day_start_mode: string
           emergency_buffer_min: number
+          home_address: string
+          home_lat: number | null
+          home_lng: number | null
           hourly_rate: number
           id: number
           owner_name: string
           rest_days: number[]
+          route_buffer_min: number
           service_area: string
           work_end_hour: number
           work_start_hour: number
@@ -356,11 +365,20 @@ export type Database = {
         Insert: {
           business_name?: string
           clock_offset_minutes?: number
+          custom_address?: string
+          custom_lat?: number | null
+          custom_lng?: number | null
+          day_end_mode?: string
+          day_start_mode?: string
           emergency_buffer_min?: number
+          home_address?: string
+          home_lat?: number | null
+          home_lng?: number | null
           hourly_rate?: number
           id?: number
           owner_name?: string
           rest_days?: number[]
+          route_buffer_min?: number
           service_area?: string
           work_end_hour?: number
           work_start_hour?: number
@@ -368,11 +386,20 @@ export type Database = {
         Update: {
           business_name?: string
           clock_offset_minutes?: number
+          custom_address?: string
+          custom_lat?: number | null
+          custom_lng?: number | null
+          day_end_mode?: string
+          day_start_mode?: string
           emergency_buffer_min?: number
+          home_address?: string
+          home_lat?: number | null
+          home_lng?: number | null
           hourly_rate?: number
           id?: number
           owner_name?: string
           rest_days?: number[]
+          route_buffer_min?: number
           service_area?: string
           work_end_hour?: number
           work_start_hour?: number
