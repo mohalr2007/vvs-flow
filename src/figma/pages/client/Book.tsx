@@ -73,6 +73,7 @@ export default function Book() {
   const [groups, setGroups] = useState<SlotGroup[] | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [slotsError, setSlotsError] = useState('');
+  const [slotsNote, setSlotsNote] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Done | null>(null);
@@ -95,8 +96,13 @@ export default function Book() {
   }
 
   async function loadSlots() {
-    setGroups(null); setSelectedSlot(null); setSlotsError('');
-    try { setGroups((await getSlots({ data: { duration: ai?.duration_min ?? 60, address: form.address } })).groups); }
+    setGroups(null); setSelectedSlot(null); setSlotsError(''); setSlotsNote('');
+    try {
+      const r = await getSlots({ data: { duration: ai?.duration_min ?? 60, address: form.address, lat: loc.lat, lng: loc.lng } });
+      if (r.outsideArea) setSlotsNote("This address is outside our service area. Go back and change the address.");
+      else if (r.routeUnavailable) setSlotsNote("We couldn't estimate the drive to your address right now. Try again in a moment, or go back and continue without a time.");
+      setGroups(r.groups);
+    }
     catch (e) { setSlotsError(errMsg(e)); setGroups([]); }
   }
 
@@ -278,7 +284,7 @@ export default function Book() {
                     onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))} />
                 </div>
               ))}
-              <LocationPicker value={loc} onChange={(v) => { setLoc(v); setForm(f => ({ ...f, address: v.address })); }} />
+              <LocationPicker value={loc} onChange={(v) => { setLoc(v); setForm(f => ({ ...f, address: v.address })); setSelectedSlot(null); setGroups(null); }} />
               <div>
                 <label style={{ display: 'block', fontSize: 12, color: '#6DA8C4', fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Photo (optional)</label>
                 <label className="w-full p-6 rounded-xl flex flex-col items-center gap-2 cursor-pointer"
@@ -295,9 +301,14 @@ export default function Book() {
         {step === 4 && !skipTime && (
           <div className="animate-fade-up">
             <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>Pick a time</h2>
-            <p style={{ color: '#6DA8C4', marginBottom: 24, fontSize: 15 }}>Only real available slots — travel time included.</p>
+            <p style={{ color: '#6DA8C4', marginBottom: 24, fontSize: 15 }}>The best times for your address, based on Mats's route that day.</p>
             {groups === null ? (
               <div className="flex flex-col gap-3">{[0, 1].map(i => <div key={i} style={{ height: 56, borderRadius: 12, background: 'rgba(255,255,255,0.05)' }} className="animate-pulse" />)}</div>
+            ) : groups.length === 0 && slotsNote ? (
+              <div>
+                <p style={{ padding: 16, borderRadius: 12, background: 'rgba(255,255,255,0.04)', fontSize: 13, color: '#6DA8C4' }}>{slotsNote}</p>
+                <button onClick={() => void loadSlots()} className="btn-ghost mt-3 px-4 py-2 rounded-lg text-sm">Try again</button>
+              </div>
             ) : groups.length === 0 ? (
               <p style={{ padding: 16, borderRadius: 12, background: 'rgba(255,255,255,0.04)', fontSize: 13, color: '#6DA8C4' }}>No free times in the next days. Go back and continue without a time — we'll contact you.</p>
             ) : groupedEntries.map(g => (
@@ -306,14 +317,17 @@ export default function Book() {
                   <span style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: W, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{fmtDay(g.day)}</span>
                   <div className="flex-1 h-px" style={{ background: 'rgba(8,145,178,0.1)' }} />
                 </div>
-                {[['Morning', g.morning], ['Afternoon', g.afternoon], ['Evening', g.evening]].map(([label, list]) => (list as { start: string; travel: string }[]).length === 0 ? null : (
+                {[['Morning', g.morning], ['Afternoon', g.afternoon], ['Evening', g.evening]].map(([label, list]) => (list as { start: string; travel: string; recommended?: boolean }[]).length === 0 ? null : (
                   <div key={label as string} className="mb-4">
                     <p style={{ fontSize: 11, color: '#6DA8C4', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label as string}</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {(list as { start: string; travel: string }[]).map(slot => (
+                      {(list as { start: string; travel: string; recommended?: boolean }[]).map(slot => (
                         <button key={slot.start} onClick={() => setSelectedSlot(slot.start)} className={`slot-card text-left ${selectedSlot === slot.start ? 'selected' : ''}`}>
-                          <div style={{ fontFamily: 'JetBrains Mono', fontSize: 18, fontWeight: 500, color: '#D9EEF7', marginBottom: 4 }}>{fmtTime(slot.start)}</div>
-                          <div style={{ fontSize: 12, color: '#6DA8C4' }}>{slot.travel} travel</div>
+                          <div className="flex items-center gap-2" style={{ marginBottom: 4 }}>
+                            <span style={{ fontFamily: 'JetBrains Mono', fontSize: 18, fontWeight: 500, color: '#D9EEF7' }}>{fmtTime(slot.start)}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: slot.recommended ? '#E8A06A' : '#22D3EE' }}>{slot.recommended ? 'Recommended' : 'Available'}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: '#6DA8C4' }}>{slot.travel}</div>
                         </button>
                       ))}
                     </div>
@@ -368,9 +382,9 @@ export default function Book() {
                 style={{ opacity: !ai && !manual ? 0.4 : 1 }}>Continue →</button>
             )}
             {step === 3 && (
-              <button onClick={goNext} disabled={!form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false}
+              <button onClick={goNext} disabled={!form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 || loc.inside !== true}
                 className="btn-water flex-1 py-4 rounded-xl font-semibold"
-                style={{ opacity: !form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false ? 0.4 : 1 }}>Continue →</button>
+                style={{ opacity: !form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 || loc.inside !== true ? 0.4 : 1 }}>Continue →</button>
             )}
             {step === 4 && !skipTime && (
               <button onClick={goNext} disabled={!selectedSlot} className="btn-water flex-1 py-4 rounded-xl font-semibold"

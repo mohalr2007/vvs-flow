@@ -340,9 +340,10 @@ export const setRotStatus = createServerFn({ method: "POST" }).middleware([requi
 });
 
 export const getSettings = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => (await guard(context)).settings);
-export const saveSettings = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ business_name: z.string().min(1).max(80), owner_name: z.string().min(1).max(80), service_area: z.string().max(80), emergency_buffer_min: z.number().int().min(0).max(480), work_start_hour: z.number().int().min(0).max(23), work_end_hour: z.number().int().min(1).max(24), hourly_rate: z.number().int().min(0).max(10000), rest_days: z.array(z.number().int().min(0).max(6)).max(6) }).parse(d)).handler(async ({ context, data }) => {
+export const saveSettings = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ business_name: z.string().min(1).max(80), owner_name: z.string().min(1).max(80), service_area: z.string().max(80), emergency_buffer_min: z.number().int().min(0).max(480), work_start_hour: z.number().int().min(0).max(23), work_end_hour: z.number().int().min(1).max(24), hourly_rate: z.number().int().min(0).max(10000), rest_days: z.array(z.number().int().min(0).max(6)).max(6), route_buffer_min: z.number().int().min(0).max(120), day_start_mode: z.enum(["business", "home", "custom"]), day_end_mode: z.enum(["none", "business", "home", "custom"]), home_address: z.string().max(300), home_lat: z.number().min(-90).max(90).nullable(), home_lng: z.number().min(-180).max(180).nullable(), custom_address: z.string().max(300), custom_lat: z.number().min(-90).max(90).nullable(), custom_lng: z.number().min(-180).max(180).nullable() }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   if (data.work_end_hour <= data.work_start_hour) throw new Error("Working day must end after it starts.");
+  for (const k of ["home", "custom"] as const) if ([data.day_start_mode, data.day_end_mode].includes(k) && (data[`${k}_lat`] == null || data[`${k}_lng`] == null)) throw new Error(`Set the ${k} location before using it as a start or end point.`);
   const { error } = await db.from("settings").update(data).eq("id", 1);
   if (error) throw new Error("Settings could not be saved.");
   return { ok: true };

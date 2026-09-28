@@ -11,7 +11,7 @@ async function admin() {
 async function context() {
   const db = await admin();
   const { data: s } = await db.from("settings").select("*").eq("id", 1).single();
-  const settings = s ?? { work_start_hour: 8, work_end_hour: 17, clock_offset_minutes: 0, business_name: "Ekström VVS", rest_days: [0, 6] };
+  const settings = s ?? { work_start_hour: 8, work_end_hour: 17, clock_offset_minutes: 0, business_name: "Ekström VVS", rest_days: [0, 6], route_buffer_min: 10, day_start_mode: "business", day_end_mode: "none", home_lat: null, home_lng: null, custom_lat: null, custom_lng: null };
   const now = new Date(Date.now() + settings.clock_offset_minutes * 60000);
   return { db, settings, now };
 }
