@@ -92,7 +92,7 @@ export default function Reschedule() {
                 <div style={{ fontFamily: 'JetBrains Mono', fontSize: 20, color: '#D9EEF7', fontWeight: 500 }}>{fmtTime(slot.start)}</div>
               </div>
               <div className="text-right">
-                <div style={{ fontSize: 12, color: '#6DA8C4' }}>{slot.travel} travel</div>
+                <div style={{ fontSize: 12, color: '#6DA8C4' }}>{slot.recommended ? '★ ' : ''}{slot.travel}</div>
                 {selected === slot.start && <div style={{ fontSize: 11, color: '#0891B2', fontWeight: 600, marginTop: 2 }}>Selected ✓</div>}
               </div>
             </button>
