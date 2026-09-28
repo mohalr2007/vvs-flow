@@ -63,3 +63,19 @@ export async function driveMinutesFromBase(lat: number, lng: number): Promise<nu
     return null;
   }
 }
+
+// OSRM table: one request returns drive minutes between every pair of points.
+// Returns null when the routing service is unreachable (caller must NOT treat slots as valid).
+export async function osrmMatrix(points: { lat: number; lng: number }[]): Promise<(number | null)[][] | null> {
+  if (points.length < 2) return [[0]];
+  try {
+    const coords = points.map((p) => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join(";");
+    const res = await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=duration`, { headers: { "User-Agent": UA } });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { code?: string; durations?: (number | null)[][] };
+    if (data.code !== "Ok" || !data.durations) return null;
+    return data.durations.map((row) => row.map((s) => (s == null ? null : Math.ceil(s / 60))));
+  } catch {
+    return null;
+  }
+}
