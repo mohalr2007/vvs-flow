@@ -24,7 +24,7 @@ export function findSlots(opts: { jobs: BusyJob[]; now: Date; duration: number; 
       const clash = busy.some((b) => { const buf = b.zone === zone ? 0 : travelBufferMin * 60000; return s < b.e + buf && e + buf > b.s; });
       if (clash) continue;
       const near = busy.find((b) => b.zone === zone && Math.abs(b.e - s) < 3 * 3600000);
-      slots.push({ start: start.toISOString(), travel: near ? `On route · Zone ${zone}` : `~${TRAVEL_BUFFER_MIN} min travel` });
+      slots.push({ start: start.toISOString(), travel: near ? `On route · Zone ${zone}` : `Estimated drive: ~${TRAVEL_BUFFER_MIN} min` });
     }
     if (slots.length) out.push({ day: slots[0]!.start, slots });
   }

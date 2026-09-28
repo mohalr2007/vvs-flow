@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from '@/figma/router';
 import { supabase } from '@/integrations/supabase/client';
-import { demoOwnerLogin } from '@/lib/owner.functions';
 
 export default function Login() {
   const [mode, setMode] = useState<'signin' | 'register'>('signin');
@@ -11,20 +10,6 @@ export default function Login() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const navigate = useNavigate();
-
-  async function demoLogin() {
-    setBusy(true); setError(''); setNotice('');
-    try {
-      const creds = await demoOwnerLogin();
-      const { error } = await supabase.auth.signInWithPassword({ email: creds.email, password: creds.password });
-      setBusy(false);
-      if (error) return setError(error.message);
-      navigate('/dashboard');
-    } catch (err) {
-      setBusy(false);
-      setError(err instanceof Error ? err.message : 'Demo login failed.');
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,19 +121,6 @@ export default function Login() {
             className="w-full text-center text-sm transition-colors" style={{ color: '#6DA8C4', background: 'none', border: 'none', cursor: 'pointer' }}>
             {mode === 'signin' ? "Don't have an account? Create one" : 'Already have an account? Sign in'}
           </button>
-
-          {/* Demo button */}
-          <div className="mt-8 p-4 rounded-xl" style={{ background: 'rgba(8,145,178,0.05)', border: '1px dashed rgba(8,145,178,0.18)' }}>
-            <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#0891B2', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-              Demo mode
-            </div>
-            <p style={{ fontSize: 12, color: '#6DA8C4', marginBottom: 10, lineHeight: 1.5 }}>
-              Skip login and enter the dashboard instantly with pre-loaded demo data.
-            </p>
-            <button onClick={demoLogin} disabled={busy} className="w-full py-2.5 rounded-lg text-sm font-semibold transition-all" style={{ background: 'rgba(8,145,178,0.1)', color: '#0891B2', border: '1px solid rgba(8,145,178,0.18)', cursor: 'pointer' }}>
-              {busy ? 'Please wait…' : 'Enter dashboard instantly →'}
-            </button>
-          </div>
         </div>
       </div>
     </div>

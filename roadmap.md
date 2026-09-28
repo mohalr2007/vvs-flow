@@ -16,3 +16,4 @@
 - [x] Settings button to delete all appointments and empty the calendar
 - [x] Smart Location & Service Area — free stack (OpenStreetMap/Nominatim + OSRM): GPS button, address search, draggable map pin, service-area gate (Västerås +40 km), server-side validation, lat/lng stored on jobs/projects.
 - [x] Route/traffic-aware slot ranking — OSRM travel-time matrix checks reachability around every booked job; slots scored by drive time, slack and day. Day start/end point (business/home/custom) and route buffer configurable in Settings → Route & day planning.
+- [x] Pre-submission pass — address picker auto-adopts the best match so Continue enables without an extra click, polite out-of-zone messaging, consistent "Estimated drive" copy on every slot, and the dev-only one-click demo login removed from /login (owner sign-in only).

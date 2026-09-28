@@ -72,7 +72,7 @@ export async function routeSlots(opts: { jobs: RouteJob[]; settings: RouteSettin
       const f = routeFeasibility({ start, end, prevEnd, travelIn, nextStart, travelOut, bufferMin: s.route_buffer_min });
       if (!f.ok) continue;
       feasible.add(c.start);
-      const reason = prev ? `${travelIn} min drive from previous job` : next ? "Fits before next appointment" : `Estimated drive: ${travelIn} min`;
+      const reason = prev ? `Estimated drive: ${travelIn} min from the previous job` : next ? "Fits before the next appointment" : `Estimated drive: ${travelIn} min`;
       scored.push({
         day: g.day,
         slot: { start: c.start, travel: reason, reason },

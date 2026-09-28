@@ -19,6 +19,8 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletRef = useRef<{ map: import('leaflet').Map; marker: import('leaflet').Marker } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True while the typed text has no adopted location yet — cleared by every pick.
+  const dirtyRef = useRef(true);
 
   // Load Leaflet only in the browser.
   useEffect(() => {
@@ -59,11 +61,17 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const pick = async (lat: number, lng: number, label?: string) => {
-    const info = await locatePin({ data: { lat, lng } });
+  const pick = async (lat: number, lng: number, label?: string, auto = false) => {
+    let info: Awaited<ReturnType<typeof locatePin>>;
+    try {
+      info = await locatePin({ data: { lat, lng } });
+    } catch {
+      return; // Coverage check failed — leave the location unpicked so Continue stays disabled.
+    }
     const address = label ?? info.address;
     setQuery(address);
-    setOpen(false);
+    if (!auto) setOpen(false);
+    dirtyRef.current = false;
     onChange({ address, lat, lng, inside: info.inside, driveMinutes: info.driveMinutes });
     const lm = leafletRef.current;
     if (lm) {
@@ -74,6 +82,7 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
 
   const onType = (text: string) => {
     setQuery(text);
+    dirtyRef.current = true;
     onChange({ ...value, address: text, lat: null, lng: null, inside: null, driveMinutes: null });
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (text.trim().length < 3) { setResults([]); setOpen(false); return; }
@@ -82,6 +91,10 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
         const { results: r } = await searchAddress({ data: { query: text } });
         setResults(r);
         setOpen(r.length > 0);
+        // Auto-adopt the best match so the map, coverage indicator and Continue
+        // are ready immediately — the list stays open to pick a different one.
+        const first = r[0];
+        if (first && dirtyRef.current) void pick(first.lat, first.lng, first.label, true);
       } catch { setResults([]); }
     }, 300);
   };
@@ -129,14 +142,21 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
       </button>
       <div ref={mapRef} className="h-56 w-full overflow-hidden rounded-xl border" style={{ borderColor: 'rgba(8,145,178,0.2)' }} />
       <p style={{ fontSize: 12, color: '#6DA8C4' }}>Drag the pin to your exact home if needed.</p>
-      {value.inside === true && (
-        <p style={{ fontSize: 13, color: '#34D399' }}>
-          ✓ Inside our service area{value.driveMinutes != null ? ` — about ${value.driveMinutes} min drive for Mats` : ''}.
-        </p>
-      )}
+      <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(8,145,178,0.12)' }}>
+        <span style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6DA8C4' }}>Service area · Västerås + 40 km</span>
+        <span className="flex-1" />
+        {value.inside === true && (
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#34D399' }}>
+            ✓ Covered{value.driveMinutes != null ? ` · ~${value.driveMinutes} min drive for Mats` : ''}
+          </span>
+        )}
+        {value.inside === false && <span style={{ fontSize: 12, fontWeight: 600, color: '#F59E0B' }}>✕ Outside area</span>}
+        {value.inside === null && <span style={{ fontSize: 12, color: '#6DA8C4' }}>Pick an address to check</span>}
+      </div>
       {value.inside === false && (
-        <p style={{ fontSize: 13, color: '#F59E0B' }}>
-          This address looks outside our service area (Västerås + 40 km). You can still send the request — Mats will confirm if he can take it.
+        <p style={{ fontSize: 13, color: '#F59E0B', lineHeight: 1.5 }}>
+          This address is outside our service area (Västerås + 40 km), so we can't offer online booking here yet.
+          Please contact Mats directly — for larger projects he can sometimes make an exception, and you can ask to join the waitlist for your area.
         </p>
       )}
     </div>
