@@ -15,10 +15,33 @@ async function context() {
   const now = new Date(Date.now() + settings.clock_offset_minutes * 60000);
   return { db, settings, now };
 }
-async function slotsFor(duration: number, zone: string, excludeJobId?: string) {
+type Coords = { lat: number; lng: number } | null;
+// Route-aware when the customer location is known; falls back to zone gaps for legacy jobs without coordinates.
+async function slotsFor(duration: number, zone: string, customer: Coords, excludeJobId?: string) {
   const { db, settings, now } = await context();
-  const { data: jobs } = await db.from("jobs").select("id,scheduled_at,duration_min,zone,status").not("scheduled_at", "is", null);
-  return findSlots({ jobs: (jobs ?? []).filter((j) => j.id !== excludeJobId), now, duration, zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour, restDays: settings.rest_days });
+  const { data: jobs } = await db.from("jobs").select("id,scheduled_at,duration_min,zone,status,lat,lng").not("scheduled_at", "is", null);
+  const list = (jobs ?? []).filter((j) => j.id !== excludeJobId);
+  if (customer) {
+    const { routeSlots } = await import("./route.server");
+    const r = await routeSlots({ jobs: list, settings: settings as Parameters<typeof routeSlots>[0]["settings"], now, duration, zone, customer });
+    return { groups: r.groups, feasible: r.feasible, routeUnavailable: r.routeUnavailable };
+  }
+  const groups = findSlots({ jobs: list, now, duration, zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour, restDays: settings.rest_days });
+  return { groups, feasible: new Set(groups.flatMap((g) => g.slots.map((x) => x.start))), routeUnavailable: false };
+}
+// Atomic guard: after inserting, if another active job overlaps, the later writer backs out.
+async function conflictAfterInsert(db: Awaited<ReturnType<typeof admin>>, id: string, start: string, duration: number) {
+  const s = new Date(start).getTime(), e = s + duration * 60000;
+  const { data: mine } = await db.from("jobs").select("created_at").eq("id", id).single();
+  const { data: others } = await db.from("jobs").select("id,scheduled_at,duration_min,created_at,status").neq("id", id).not("scheduled_at", "is", null)
+    .gte("scheduled_at", new Date(s - 8 * 3600000).toISOString()).lte("scheduled_at", new Date(e).toISOString());
+  const dead = ["cancelled", "expired", "completed", "needs_assessment", "waitlisted"];
+  return (others ?? []).some((o) => {
+    if (dead.includes(o.status)) return false;
+    const os = new Date(o.scheduled_at!).getTime(), oe = os + o.duration_min * 60000;
+    if (!(s < oe && e > os)) return false;
+    return o.created_at < (mine?.created_at ?? "") || (o.created_at === mine?.created_at && o.id < id);
+  });
 }
 async function expireOffers(db: Awaited<ReturnType<typeof admin>>, now: Date) {
   const { data } = await db.from("offers").select("id,waitlist_id").eq("status", "pending").lt("expires_at", now.toISOString());
@@ -39,8 +62,16 @@ export const understandRequest = createServerFn({ method: "POST" })
   });
 
 export const getAvailableSlots = createServerFn({ method: "POST" })
-  .inputValidator((d) => z.object({ duration: z.number().int().min(15).max(480), address: z.string().max(200) }).parse(d))
-  .handler(async ({ data }) => ({ groups: await slotsFor(data.duration, zoneFromAddress(data.address)) }));
+  .inputValidator((d) => z.object({ duration: z.number().int().min(15).max(480), address: z.string().max(200), lat: z.number().min(-90).max(90).nullable().optional(), lng: z.number().min(-180).max(180).nullable().optional() }).parse(d))
+  .handler(async ({ data }) => {
+    const customer = data.lat != null && data.lng != null ? { lat: data.lat, lng: data.lng } : null;
+    if (customer) {
+      const { isInsideServiceArea } = await import("./location.server");
+      if (!isInsideServiceArea(customer.lat, customer.lng)) return { groups: [], routeUnavailable: false, outsideArea: true };
+    }
+    const r = await slotsFor(data.duration, zoneFromAddress(data.address), customer);
+    return { groups: r.groups, routeUnavailable: r.routeUnavailable, outsideArea: false };
+  });
 
 export const createPhotoUpload = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ ext: z.enum(["jpg", "jpeg", "png", "webp", "heic"]) }).parse(d))
@@ -88,11 +119,20 @@ export const createBooking = createServerFn({ method: "POST" })
     const confidence = data.confidence ?? 0;
     const lowConfidence = confidence < 60 || !data.slotStart;
     if (data.slotStart) {
-      const groups = await slotsFor(data.duration_min ?? 60, zone);
-      if (!groups.some((g) => g.slots.some((s) => s.start === data.slotStart))) throw new Error("That time was just taken. Please choose another time.");
+      // Backend is the source of truth: recompute route feasibility for this exact address.
+      const r = await slotsFor(data.duration_min ?? 60, zone, data.lat != null && data.lng != null ? { lat: data.lat, lng: data.lng } : null);
+      if (r.routeUnavailable) throw new Error("We couldn't check the route right now. Please try again in a moment.");
+      if (!r.feasible.has(data.slotStart)) throw new Error("That time is no longer reachable. Please choose another time.");
     }
     const { data: j, error } = await db.from("jobs").insert({ customer_name: data.name, phone: data.phone, email: data.email, address: data.address, zone, title: data.title ?? "Plumbing request", description: data.description, status: lowConfidence ? "needs_assessment" : "confirmed", urgency: data.urgency ?? "Normal", confidence, duration_min: data.duration_min ?? 60, value: data.price_high ?? 0, missing_fields: data.missing_fields ?? [], scheduled_at: lowConfidence ? null : data.slotStart, photo_path: data.photoPath, ...coords }).select("ref,access_token,scheduled_at").single();
     if (error) throw new Error("Your booking hasn't been confirmed. Please try again.");
+    if (j.scheduled_at) {
+      const { data: row } = await db.from("jobs").select("id").eq("access_token", j.access_token).single();
+      if (row && (await conflictAfterInsert(db, row.id, j.scheduled_at, data.duration_min ?? 60))) {
+        await db.from("jobs").delete().eq("id", row.id);
+        throw new Error("That time was just taken. Please choose another time.");
+      }
+    }
     if (data.email) {
       const { sendEmail, bookingConfirmationEmail, bookingUrl } = await import("./email.server");
       const when = j.scheduled_at ? new Date(j.scheduled_at).toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : null;
@@ -128,18 +168,20 @@ export const getRescheduleOptions = createServerFn({ method: "POST" })
     const db = await admin();
     const { data: job } = await db.from("jobs").select("id," + publicJob).eq("access_token", data.token).maybeSingle();
     if (!job) return { job: null, groups: [] };
+    const { data: pos } = await db.from("jobs").select("lat,lng").eq("access_token", data.token).maybeSingle();
     const j = job as unknown as { id: string; duration_min: number; zone: string };
-    return { job, groups: await slotsFor(j.duration_min, j.zone, j.id) };
+    const r = await slotsFor(j.duration_min, j.zone, pos?.lat != null && pos?.lng != null ? { lat: pos.lat, lng: pos.lng } : null, j.id);
+    return { job, groups: r.groups, routeUnavailable: r.routeUnavailable };
   });
 
 export const rescheduleBooking = createServerFn({ method: "POST" })
   .inputValidator((d) => token.extend({ slotStart: z.string().datetime() }).parse(d))
   .handler(async ({ data }) => {
     const db = await admin();
-    const { data: job } = await db.from("jobs").select("id,duration_min,zone,status").eq("access_token", data.token).maybeSingle();
+    const { data: job } = await db.from("jobs").select("id,duration_min,zone,status,lat,lng").eq("access_token", data.token).maybeSingle();
     if (!job || !["confirmed", "access_confirmed"].includes(job.status)) throw new Error("This appointment can no longer be rescheduled.");
-    const groups = await slotsFor(job.duration_min, job.zone, job.id);
-    if (!groups.some((g) => g.slots.some((s) => s.start === data.slotStart))) throw new Error("That time is no longer available.");
+    const r = await slotsFor(job.duration_min, job.zone, job.lat != null && job.lng != null ? { lat: job.lat, lng: job.lng } : null, job.id);
+    if (!r.feasible.has(data.slotStart)) throw new Error("That time is no longer available.");
     await db.from("jobs").update({ scheduled_at: data.slotStart, status: "confirmed", access_status: null }).eq("id", job.id);
     return { ok: true, scheduledAt: data.slotStart };
   });
