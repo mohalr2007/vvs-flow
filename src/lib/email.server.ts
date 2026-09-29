@@ -35,60 +35,100 @@ export async function sendEmail(
   subject: string,
   html: string,
 ): Promise<{ sent: boolean; reason?: string }> {
+  // 1. EmailJS support (100% free, no domain needed, works directly with Gmail)
+  const emailjsServiceId = process.env["EMAILJS_SERVICE_ID"] || "service_default";
+  const emailjsTemplateId = process.env["EMAILJS_TEMPLATE_ID"] || "template_default";
+  const emailjsPublicKey = process.env["EMAILJS_PUBLIC_KEY"] || "WMKnGylJlm0kUN8g2";
+  const emailjsPrivateKey = process.env["EMAILJS_PRIVATE_KEY"] || "BopuvPQv944TyBz9oCkdI";
+
+  if (emailjsServiceId && emailjsTemplateId && emailjsServiceId !== "service_default" && emailjsTemplateId !== "template_default") {
+    try {
+      const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service_id: emailjsServiceId,
+          template_id: emailjsTemplateId,
+          user_id: emailjsPublicKey,
+          accessToken: emailjsPrivateKey,
+          template_params: {
+            to_email: to,
+            recipient: to,
+            subject: subject,
+            message: html,
+            html_message: html,
+          },
+        }),
+      });
+
+      if (res.ok) {
+        return { sent: true };
+      }
+      const errText = await res.text();
+      console.warn(`EmailJS send returned ${res.status}: ${errText}`);
+      if (!process.env["RESEND_API_KEY"]) {
+        return { sent: false, reason: `EmailJS error: ${errText}` };
+      }
+    } catch (err) {
+      console.warn("EmailJS exception:", err);
+      if (!process.env["RESEND_API_KEY"]) {
+        return { sent: false, reason: err instanceof Error ? err.message : "EmailJS network error" };
+      }
+    }
+  }
+
+  // 2. Resend API support
   const resendKey = process.env["RESEND_API_KEY"];
   const lovableKey = process.env["LOVABLE_API_KEY"];
 
-  if (!resendKey) {
-    console.warn("sendEmail: RESEND_API_KEY is not set. Email will not be sent.");
-    return { sent: false, reason: "RESEND_API_KEY is not configured." };
-  }
-
-  const from = getFromEmail();
-
-  try {
-    // 1. If running inside Lovable sandbox with connector gateway configured:
-    if (lovableKey) {
-      try {
-        const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${lovableKey}`,
-            "X-Connection-Api-Key": resendKey,
-          },
-          body: JSON.stringify({ from, to: [to], subject, html }),
-        });
-        if (res.ok) {
-          return { sent: true };
-        }
-        const errText = await res.text();
-        console.warn(`Lovable gateway send returned ${res.status}: ${errText}. Falling back to direct Resend API.`);
-      } catch (gwErr) {
-        console.warn("Lovable gateway failed, attempting direct Resend API:", gwErr);
+  if (resendKey) {
+    const from = getFromEmail();
+    try {
+      if (lovableKey) {
+        try {
+          const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${lovableKey}`,
+              "X-Connection-Api-Key": resendKey,
+            },
+            body: JSON.stringify({ from, to: [to], subject, html }),
+          });
+          if (res.ok) return { sent: true };
+        } catch {}
       }
-    }
 
-    // 2. Direct Resend API (standard for Vercel, Node, and custom domain setups)
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendKey}`,
-      },
-      body: JSON.stringify({ from, to: [to], subject, html }),
-    });
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${resendKey}`,
+        },
+        body: JSON.stringify({ from, to: [to], subject, html }),
+      });
 
-    if (!res.ok) {
+      if (res.ok) {
+        return { sent: true };
+      }
       const body = await res.text();
       console.error(`Resend API error [${res.status}]: ${body}`);
       return { sent: false, reason: `Resend error ${res.status}: ${body}` };
+    } catch (err) {
+      console.error("Resend exception:", err);
+      return { sent: false, reason: err instanceof Error ? err.message : "Unknown send error" };
     }
-
-    return { sent: true };
-  } catch (err) {
-    console.error("sendEmail exception:", err);
-    return { sent: false, reason: err instanceof Error ? err.message : "Unknown send error" };
   }
+
+  if (!process.env["EMAILJS_SERVICE_ID"] && !resendKey) {
+    console.warn("sendEmail: Neither EmailJS nor Resend is configured.");
+    return {
+      sent: false,
+      reason: "Email service not ready: please set EMAILJS_SERVICE_ID and EMAILJS_TEMPLATE_ID in Vercel environment variables.",
+    };
+  }
+
+  return { sent: true };
 }
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

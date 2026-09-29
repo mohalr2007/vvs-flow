@@ -317,19 +317,19 @@ function SettingsForm({ s }: { s: Settings }) {
         </div>
       </div>
 
-      {/* Email & Resend configuration */}
+      {/* Email & Resend / EmailJS configuration */}
       <div className="p-4 rounded-xl" style={{ background: T.card, border: `1px solid ${T.cardBorder}` }}>
         <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#0891B2', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
-          ✉ Email service (Resend)
+          ✉ Email service (EmailJS / Resend)
         </div>
         <p style={{ fontSize: 12, color: T.textMid, lineHeight: 1.5, marginBottom: 10 }}>
-          Booking confirmations and 15-minute waitlist offers are dispatched via Resend.
-          When deploying to <strong>Vercel</strong>, configure these environment variables in your Vercel project:
+          Booking confirmations and waitlist offers are dispatched automatically via <strong>EmailJS</strong> (gratuit avec votre Gmail personnel) ou <strong>Resend</strong> :
         </p>
         <div className="p-2.5 rounded-lg text-[11px] font-mono mb-3 space-y-0.5" style={{ background: T.input, color: T.textDim, border: `1px solid ${T.cardBorder}` }}>
-          <div>RESEND_API_KEY=re_...</div>
-          <div>RESEND_FROM_EMAIL=Ekström VVS &lt;bokning@yourdomain.com&gt;</div>
-          <div>APP_URL=https://yourdomain.com</div>
+          <div>EMAILJS_SERVICE_ID=service_... (depuis EmailJS &gt; Email Services)</div>
+          <div>EMAILJS_TEMPLATE_ID=template_... (depuis EmailJS &gt; Email Templates)</div>
+          <div>EMAILJS_PUBLIC_KEY=WMKnGylJlm0kUN8g2</div>
+          <div>EMAILJS_PRIVATE_KEY=BopuvPQv944TyBz9oCkdI</div>
         </div>
         <form onSubmit={handleTestEmail} className="flex flex-col sm:flex-row gap-2 items-center">
           <input
