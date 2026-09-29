@@ -375,22 +375,34 @@ const DEMO_EMAIL = "mats.demo@vvsflow.local";
 const DEMO_PASSWORD = "vvsflow-demo-2026";
 
 export const demoOwnerLogin = createServerFn({ method: "POST" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  let user = list?.users.find((u) => u.email === DEMO_EMAIL);
-  if (!user) {
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email: DEMO_EMAIL,
-      password: DEMO_PASSWORD,
-      email_confirm: true,
-      user_metadata: { name: "Mats Ekström" },
-    });
-    if (error || !data.user) throw new Error("Could not create demo account: " + (error?.message ?? "unknown"));
-    user = data.user;
+  // If service role key is present, provision demo user with owner role:
+  if (process.env["SUPABASE_SERVICE_ROLE_KEY"] && process.env["SUPABASE_URL"]) {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      let user = list?.users.find((u) => u.email === DEMO_EMAIL);
+      if (!user) {
+        const { data, error } = await supabaseAdmin.auth.admin.createUser({
+          email: DEMO_EMAIL,
+          password: DEMO_PASSWORD,
+          email_confirm: true,
+          user_metadata: { name: "Mats Ekström" },
+        });
+        if (!error && data?.user) {
+          user = data.user;
+        }
+      }
+      if (user) {
+        const { data: role } = await supabaseAdmin.from("user_roles").select("id").eq("user_id", user.id).eq("role", "owner").maybeSingle();
+        if (!role) await supabaseAdmin.from("user_roles").insert({ user_id: user.id, role: "owner" });
+      }
+    } catch (e) {
+      console.warn("Could not ensure demo user with admin client:", e);
+    }
   }
-  const { data: role } = await supabaseAdmin.from("user_roles").select("id").eq("user_id", user.id).eq("role", "owner").maybeSingle();
-  if (!role) await supabaseAdmin.from("user_roles").insert({ user_id: user.id, role: "owner" });
+
   return { email: DEMO_EMAIL, password: DEMO_PASSWORD };
 });
+
 
 

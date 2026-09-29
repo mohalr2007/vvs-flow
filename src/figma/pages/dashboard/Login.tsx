@@ -22,11 +22,33 @@ export default function Login() {
     setNotice('');
     try {
       const creds = await getDemoCreds();
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
+      let { error: signInErr } = await supabase.auth.signInWithPassword({
         email: creds.email,
         password: creds.password,
       });
-      if (signInErr) throw signInErr;
+
+      if (signInErr && signInErr.message === 'Invalid login credentials') {
+        const { error: signUpErr } = await supabase.auth.signUp({
+          email: creds.email,
+          password: creds.password,
+          options: { data: { name: 'Mats Ekström' } },
+        });
+        if (!signUpErr) {
+          const retry = await supabase.auth.signInWithPassword({
+            email: creds.email,
+            password: creds.password,
+          });
+          signInErr = retry.error;
+        }
+      }
+
+      if (signInErr) {
+        throw new Error(
+          signInErr.message === 'Invalid login credentials'
+            ? "Pour activer l'accès 1-clic, ajoutez la variable SUPABASE_SERVICE_ROLE_KEY dans Vercel (Settings > Environment Variables, récupérée dans Supabase > Project Settings > API > service_role secret)."
+            : signInErr.message
+        );
+      }
       navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Demo access failed. Please try again.');
