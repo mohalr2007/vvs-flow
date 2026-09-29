@@ -478,7 +478,7 @@ export default function Book() {
                 { label: 'Client', value: form.name || '—' },
                 { label: 'Address', value: form.address || '—' },
                 { label: 'Phone', value: form.phone || '—' },
-                { label: 'Time', value: skipTime ? (isProject ? "We'll contact you" : "We'll contact you to agree a time") : (selectedSlot ? `${fmtDay(selectedSlot)} · ${fmtRange(selectedSlot, ai?.duration_min ?? 60)}` : '—') },
+                { label: 'Time', value: skipTime || noTime || !selectedSlot ? (isProject ? "We'll contact you" : "We'll contact you to agree a time") : `${fmtDay(selectedSlot)} · ${fmtRange(selectedSlot, ai?.duration_min ?? 60)}` },
                 { label: 'Access', value: accessChoice ?? 'Not specified' },
                 { label: 'Estimate', value: ai && ai.price_high ? `${sek(ai.price_low)} – ${sek(ai.price_high)}` : isProject ? 'Site visit free of charge' : 'After assessment' },
               ].map((row, i, arr) => (
@@ -518,24 +518,31 @@ export default function Book() {
                 {analyzing ? 'Analysing request…' : 'Continue →'}
               </button>
             )}
-            {step === 3 && (
-              <button
-                onClick={() => void goNext()}
-                disabled={!form.name || (form.address.trim().length <= 5 && loc.address.trim().length <= 5) || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false}
-                className="btn-water flex-1 py-4 rounded-xl font-semibold"
-                style={{ opacity: !form.name || (form.address.trim().length <= 5 && loc.address.trim().length <= 5) || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false ? 0.4 : 1 }}
-              >
-                Continue →
-              </button>
-            )}
+            {step === 3 && (() => {
+              const detailsBlocked =
+                form.name.trim().length < 2 ||
+                (form.address.trim().length < 4 && loc.address.trim().length < 4) ||
+                form.phone.replace(/\D/g, '').length < 7 ||
+                loc.inside === false;
+              return (
+                <button
+                  onClick={() => void goNext()}
+                  disabled={detailsBlocked}
+                  className="btn-water flex-1 py-4 rounded-xl font-semibold"
+                  style={{ opacity: detailsBlocked ? 0.4 : 1 }}
+                >
+                  Continue →
+                </button>
+              );
+            })()}
             {step === 4 && !skipTime && (
-              <button onClick={goNext} disabled={!selectedSlot} className="btn-water flex-1 py-4 rounded-xl font-semibold"
-                style={{ opacity: !selectedSlot ? 0.4 : 1 }}>Continue →</button>
-            )}
-            {step === accessStep && (
-              <button onClick={goNext} className="btn-water flex-1 py-4 rounded-xl font-semibold">
-                Continue →
-              </button>
+              selectedSlot ? (
+                <button onClick={() => { setNoTime(false); void goNext(); }} className="btn-water flex-1 py-4 rounded-xl font-semibold">Continue →</button>
+              ) : (
+                <button onClick={() => { setNoTime(true); setSelectedSlot(null); void goNext(); }} className="btn-ghost flex-1 py-4 rounded-xl font-semibold">
+                  Continue without a time →
+                </button>
+              )
             )}
             {step === confirmStep && (
               <button onClick={goNext} disabled={busy} className="btn-water flex-1 py-4 rounded-xl font-semibold">
