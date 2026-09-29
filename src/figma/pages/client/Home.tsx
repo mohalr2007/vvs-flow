@@ -133,6 +133,37 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── The problem strip ─────────────────────────────── */}
+      <section style={{ borderTop: '1px solid rgba(8,145,178,0.08)', background: 'rgba(7,26,46,0.4)' }}>
+        <div className="max-w-6xl mx-auto px-6 py-10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-12">
+            <div style={{ flexShrink: 0 }}>
+              <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#B87333', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 5 }}>
+                The problem
+              </div>
+              <div style={{ fontFamily: 'Fraunces, serif', fontSize: 20, fontWeight: 300, color: '#D9EEF7', lineHeight: 1.2 }}>
+                Mats loses 2–3 jobs/week
+              </div>
+              <div style={{ fontSize: 13, color: '#6DA8C4', marginTop: 4 }}>
+                buried in WhatsApp & voicemail
+              </div>
+            </div>
+            <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(184,115,51,0.3), rgba(8,145,178,0.3))' }} />
+            <div style={{ flexShrink: 0, textAlign: 'right' }}>
+              <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#0891B2', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 5 }}>
+                VVS Flow solves
+              </div>
+              <div style={{ fontFamily: 'Fraunces, serif', fontSize: 20, fontWeight: 300, color: '#22D3EE', lineHeight: 1.2 }}>
+                Every inquiry gets an outcome
+              </div>
+              <div style={{ fontSize: 13, color: '#6DA8C4', marginTop: 4 }}>
+                0 phone calls. 3 minutes to book.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Steps ─────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">

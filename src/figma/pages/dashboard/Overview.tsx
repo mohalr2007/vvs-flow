@@ -7,6 +7,7 @@ import { useDashTheme } from '@/figma/context/DashTheme';
 import { ownerService } from '@/lib/services';
 import { statusLabel, statusTone } from '@/lib/vvs-data';
 import { fmtDay, fmtTime, sek } from '@/lib/time';
+import { useState } from 'react';
 
 const TONE_COLOR: Record<string, string> = {
   neutral: '#3B9AC4',
@@ -100,9 +101,46 @@ export default function Overview() {
     .concat([{ key: 'now', time: fmtTime(d.now), title: '', customer: '', tone: '', current: true, at: nowMs } as never])
     .sort((a, b) => (a as unknown as { at: number }).at - (b as unknown as { at: number }).at);
 
+  const [bannerDismissed, setBannerDismissed] = useState(() => {
+    try { return localStorage.getItem('vvs-demo-banner') === 'dismissed'; } catch { return false; }
+  });
+  const dismissBanner = () => {
+    try { localStorage.setItem('vvs-demo-banner', 'dismissed'); } catch {}
+    setBannerDismissed(true);
+  };
+
   return (
     <DashboardLayout>
       <div className="p-4 md:p-8 max-w-5xl mx-auto animate-fade-up">
+        {/* Judge/Demo Guide Banner */}
+        {!bannerDismissed && (
+          <div className="mb-8 rounded-2xl p-5 relative" style={{ background: 'rgba(8,145,178,0.06)', border: '1px solid rgba(8,145,178,0.2)' }}>
+            <button onClick={dismissBanner} className="absolute top-4 right-4" style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', fontSize: 16 }}>✕</button>
+            <div style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#0891B2', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>✦ Demo guide — Lovable Challenge</div>
+            <p style={{ fontSize: 13, color: T.textMid, marginBottom: 14, lineHeight: 1.65, maxWidth: 640 }}>
+              You are logged in as <strong style={{ color: T.text }}>Mats Ekström</strong> — the solo plumber/owner.
+              This dashboard shows his live operational state. Use the <strong style={{ color: T.text }}>Demo clock</strong> (top right) to advance time and trigger
+              automatic offer expiry, slot recovery, and status updates.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Customer booking', href: '/book' },
+                { label: 'Waitlist recovery', href: '/dashboard/waitlist' },
+                { label: 'AI Inbox', href: '/dashboard/inbox' },
+                { label: 'Leads tracker', href: '/dashboard/leads' },
+                { label: 'Full demo guide', href: '/demo' },
+              ].map(l => (
+                <Link key={l.href} to={l.href} className="no-underline px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                  style={{ background: 'rgba(8,145,178,0.1)', color: '#22D3EE', border: '1px solid rgba(8,145,178,0.2)' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(8,145,178,0.2)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(8,145,178,0.1)'}
+                >
+                  {l.label} →
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-start justify-between mb-6 md:mb-10 gap-4 flex-wrap">
           <div>

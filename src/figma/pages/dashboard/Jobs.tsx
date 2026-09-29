@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useServerFn } from '@tanstack/react-start';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { Link } from '@/figma/router';
 import DashboardLayout from '@/figma/components/DashboardLayout';
 import { useDashTheme } from '@/figma/context/DashTheme';
@@ -28,9 +29,28 @@ export default function Jobs() {
   const { tokens: T } = useDashTheme();
   const [filter, setFilter] = useState<keyof typeof FILTERS>('All');
   const [search, setSearch] = useState('');
+  const [approving, setApproving] = useState<string | null>(null);
 
   const list = useServerFn(jobService.list);
+  const approve = useServerFn(jobService.approve);
+  const qc = useQueryClient();
   const q = useQuery({ queryKey: ['jobs'], queryFn: () => list() });
+
+  const quickApprove = async (e: React.MouseEvent, jobId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setApproving(jobId);
+    try {
+      await approve({ data: { id: jobId } });
+      await qc.invalidateQueries({ queryKey: ['jobs'] });
+      qc.invalidateQueries({ queryKey: ['overview'] });
+      toast.success('Job approved — find available slots in the job detail');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not approve');
+    } finally {
+      setApproving(null);
+    }
+  };
 
   const jobs: Job[] = q.data ?? [];
   const term = search.trim().toLowerCase();
@@ -149,7 +169,25 @@ export default function Jobs() {
                     {statusLabel(job.status)}
                   </span>
 
-                  <span style={{ color: T.textDim, fontSize: 12 }}>→</span>
+                  {/* Quick approve for review-stage jobs */}
+                  {(job.status === 'new' || job.status === 'qualified') && !aiWarning ? (
+                    <button
+                      onClick={(e) => quickApprove(e, job.id)}
+                      disabled={approving === job.id}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold flex-shrink-0 transition-all"
+                      style={{
+                        background: approving === job.id ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.12)',
+                        color: '#22C55E',
+                        border: '1px solid rgba(34,197,94,0.25)',
+                        cursor: approving === job.id ? 'not-allowed' : 'pointer',
+                        opacity: approving === job.id ? 0.6 : 1,
+                      }}
+                    >
+                      {approving === job.id ? '…' : '✓ Approve'}
+                    </button>
+                  ) : (
+                    <span style={{ color: T.textDim, fontSize: 12 }}>→</span>
+                  )}
                 </Link>
               );
             })}

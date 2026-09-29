@@ -15,6 +15,7 @@ export default function ClientNav() {
   const links = [
     { href: '/', label: 'Home' },
     { href: '/book', label: 'Book' },
+    { href: '/demo', label: '✦ Demo' },
   ];
 
   return (

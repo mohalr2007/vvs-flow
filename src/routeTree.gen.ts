@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BookRouteImport } from './routes/book'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EmergencyRouteImport } from './routes/emergency'
 import { Route as LoginRouteImport } from './routes/login'
@@ -37,6 +38,11 @@ const IndexRoute = IndexRouteImport.update({
 const BookRoute = BookRouteImport.update({
   id: '/book',
   path: '/book',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -129,6 +135,7 @@ const DashboardProjectsProjectIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/book': typeof BookRoute
+  '/demo': typeof DemoRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/emergency': typeof EmergencyRoute
   '/login': typeof LoginRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/book': typeof BookRoute
+  '/demo': typeof DemoRoute
   '/emergency': typeof EmergencyRoute
   '/login': typeof LoginRoute
   '/access/$token': typeof AccessTokenRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/book': typeof BookRoute
+  '/demo': typeof DemoRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/emergency': typeof EmergencyRoute
   '/login': typeof LoginRoute
@@ -194,6 +203,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/book'
+    | '/demo'
     | '/dashboard'
     | '/emergency'
     | '/login'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/book'
+    | '/demo'
     | '/emergency'
     | '/login'
     | '/access/$token'
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/book'
+    | '/demo'
     | '/dashboard'
     | '/emergency'
     | '/login'
@@ -257,6 +269,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BookRoute: typeof BookRoute
+  DemoRoute: typeof DemoRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   EmergencyRoute: typeof EmergencyRoute
   LoginRoute: typeof LoginRoute
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/book': {
@@ -438,6 +458,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BookRoute: BookRoute,
+  DemoRoute: DemoRoute,
   DashboardRoute: DashboardRouteWithChildren,
   EmergencyRoute: EmergencyRoute,
   LoginRoute: LoginRoute,
