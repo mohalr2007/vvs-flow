@@ -89,7 +89,7 @@ const bookingSchema = z.object({
   title: z.string().max(120).nullable(), urgency: z.enum(["Low", "Normal", "High", "Emergency"]).nullable(),
   duration_min: z.number().int().min(15).max(480).nullable(), price_high: z.number().min(0).max(1000000).nullable(),
   confidence: z.number().min(0).max(100).nullable(), missing_fields: z.array(z.string().max(80)).max(5).nullable(),
-  slotStart: z.string().datetime().nullable(), photoPath: z.string().regex(/^intake\/[a-f0-9-]+\.\w+$/).nullable(),
+  slotStart: z.string().nullable(), photoPath: z.string().regex(/^intake\/[a-f0-9-]+\.\w+$/).nullable(),
   lat: z.number().min(-90).max(90).nullable().optional(), lng: z.number().min(-180).max(180).nullable().optional(),
   accessChoice: z.string().nullable().optional(),
 });
@@ -131,10 +131,24 @@ export const createBooking = createServerFn({ method: "POST" })
     const confidence = data.confidence ?? 0;
     const lowConfidence = confidence < 60 || !data.slotStart;
     if (data.slotStart) {
-      // Backend is the source of truth: recompute route feasibility for this exact address.
-      const r = await slotsFor(data.duration_min ?? 60, zone, data.lat != null && data.lng != null ? { lat: data.lat, lng: data.lng } : null);
-      if (r.routeUnavailable) throw new Error("We couldn't check the route right now. Please try again in a moment.");
-      if (!r.feasible.has(data.slotStart)) throw new Error("That time is no longer reachable. Please choose another time.");
+      const scheduledDate = new Date(data.slotStart);
+      if (!isNaN(scheduledDate.getTime())) {
+        data.slotStart = scheduledDate.toISOString();
+      }
+      // Check collision with already scheduled active appointments (accepts after-hours/evening choices)
+      const s = new Date(data.slotStart).getTime();
+      const e = s + (data.duration_min ?? 60) * 60000;
+      const { data: existingJobs } = await db.from("jobs").select("id,scheduled_at,duration_min,status").not("scheduled_at", "is", null);
+      const dead = new Set(["cancelled", "expired", "completed", "needs_assessment", "waitlisted"]);
+      const hasCollision = (existingJobs ?? []).some((jobItem) => {
+        if (dead.has(jobItem.status) || !jobItem.scheduled_at) return false;
+        const js = new Date(jobItem.scheduled_at).getTime();
+        const je = js + (jobItem.duration_min || 60) * 60000;
+        return s < je && e > js;
+      });
+      if (hasCollision) {
+        throw new Error("That time is already booked. Please choose another time.");
+      }
     }
     const ready = Boolean(data.accessChoice && data.accessChoice !== "I need to arrange access");
     const initialStatus = lowConfidence ? "needs_assessment" : (ready ? "access_confirmed" : "confirmed");

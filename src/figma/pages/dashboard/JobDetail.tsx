@@ -85,6 +85,29 @@ function Editor({ job, photoUrl, jobId, qc, T }: { job: Job; photoUrl: string | 
   const open = ['new', 'qualified', 'needs_assessment', 'held'].includes(job.status);
   const valid = f.title.trim().length > 0 && f.duration_min >= 15;
 
+  const [customDate, setCustomDate] = useState('');
+  const [customTime, setCustomTime] = useState('18:00');
+  const [showCustom, setShowCustom] = useState(false);
+
+  const bookCustomSlot = async () => {
+    if (!customDate) {
+      toast.error('Please pick a date');
+      return;
+    }
+    const dt = new Date(`${customDate}T${customTime}:00`);
+    if (isNaN(dt.getTime())) {
+      toast.error('Invalid date or time');
+      return;
+    }
+    await run('schedule', async () => {
+      await schedule({ data: { id: job.id, slotStart: dt.toISOString() } });
+      setGroups(null);
+      setSelectedSlot(null);
+      setShowCustom(false);
+      await refresh();
+    }, `Appointment booked for ${customDate} at ${customTime}`);
+  };
+
   const refresh = () => Promise.all([
     qc.invalidateQueries({ queryKey: ['job', jobId] }),
     qc.invalidateQueries({ queryKey: ['jobs'] }),
@@ -237,25 +260,138 @@ function Editor({ job, photoUrl, jobId, qc, T }: { job: Job; photoUrl: string | 
           <div className="p-5 rounded-2xl" style={{ background: T.card, border: `1px solid ${T.cardBorderStrong}` }}>
             <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: 16, color: T.text, marginBottom: 14, fontWeight: 400 }}>Decision</h3>
 
-            {open && !groups ? (
-              <button
-                disabled={!valid || !!busy}
-                onClick={() => run('approve', async () => {
-                  const r = await approve({ data: { id: job.id, fields } });
-                  setGroups(r.groups);
-                  await refresh();
-                }, 'Details approved')}
-                className="btn-copper w-full py-3 rounded-xl font-semibold text-sm mb-3"
-              >
-                {busy === 'approve' ? 'Finding slots…' : 'Approve & Find Slots →'}
-              </button>
+            {open && !groups && !showCustom ? (
+              <div className="flex flex-col gap-2 mb-3">
+                <button
+                  disabled={!valid || !!busy}
+                  onClick={() => run('approve', async () => {
+                    const r = await approve({ data: { id: job.id, fields } });
+                    setGroups(r.groups);
+                    await refresh();
+                  }, 'Details approved')}
+                  className="btn-copper w-full py-3 rounded-xl font-semibold text-sm"
+                >
+                  {busy === 'approve' ? 'Finding slots…' : 'Approve & Find Route Slots →'}
+                </button>
+                <button
+                  onClick={() => setShowCustom(true)}
+                  className="btn-ghost w-full py-2.5 rounded-xl text-xs font-medium"
+                >
+                  🌙 Set custom / after-hours time
+                </button>
+              </div>
+            ) : open && showCustom ? (
+              <div className="p-4 rounded-xl mb-3 flex flex-col gap-3" style={{ background: T.cardAlt, border: `1px solid ${T.cardBorder}` }}>
+                <div className="flex items-center justify-between">
+                  <span style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#0891B2', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    🌙 Custom / After-hours
+                  </span>
+                  <button onClick={() => setShowCustom(false)} style={{ background: 'none', border: 'none', color: T.textMid, cursor: 'pointer', fontSize: 12 }}>
+                    ✕ Cancel
+                  </button>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, color: T.textDim, fontFamily: 'JetBrains Mono', textTransform: 'uppercase', marginBottom: 4 }}>Date</label>
+                  <input
+                    type="date"
+                    value={customDate}
+                    onChange={e => setCustomDate(e.target.value)}
+                    className="vvs-input"
+                    min={new Date().toISOString().slice(0, 10)}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, color: T.textDim, fontFamily: 'JetBrains Mono', textTransform: 'uppercase', marginBottom: 4 }}>Time</label>
+                  <input
+                    type="time"
+                    value={customTime}
+                    onChange={e => setCustomTime(e.target.value)}
+                    className="vvs-input"
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {['17:30', '18:00', '18:30', '19:00', '20:00'].map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setCustomTime(t)}
+                        className="px-2 py-1 rounded text-xs font-mono"
+                        style={{ background: customTime === t ? 'rgba(8,145,178,0.2)' : T.input, color: customTime === t ? '#22D3EE' : T.textMid, border: `1px solid ${customTime === t ? '#0891B2' : T.cardBorder}` }}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  disabled={!customDate || !!busy}
+                  onClick={bookCustomSlot}
+                  className="btn-copper w-full py-2.5 rounded-lg text-sm font-semibold mt-1"
+                >
+                  {busy === 'schedule' ? 'Booking…' : 'Confirm this appointment ✓'}
+                </button>
+              </div>
             ) : groups ? (
               <div>
-                <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#22C55E', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
-                  ✓ Approved — pick a slot
+                <div className="flex items-center justify-between mb-2">
+                  <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#22C55E', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                    ✓ Approved — pick a slot
+                  </div>
+                  <button
+                    onClick={() => setShowCustom(v => !v)}
+                    style={{ background: 'none', border: 'none', color: '#0891B2', fontSize: 11, cursor: 'pointer', fontFamily: 'JetBrains Mono' }}
+                  >
+                    {showCustom ? 'Show route slots' : '🌙 Custom time'}
+                  </button>
                 </div>
-                {groups.length === 0 ? (
-                  <p style={{ fontSize: 12, color: T.textMid, marginBottom: 12 }}>No free slots in the next days. Consider moving the job to the waitlist.</p>
+                {showCustom ? (
+                  <div className="p-4 rounded-xl mb-3 flex flex-col gap-3" style={{ background: T.cardAlt, border: `1px solid ${T.cardBorder}` }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, color: T.textDim, fontFamily: 'JetBrains Mono', textTransform: 'uppercase', marginBottom: 4 }}>Date</label>
+                      <input
+                        type="date"
+                        value={customDate}
+                        onChange={e => setCustomDate(e.target.value)}
+                        className="vvs-input"
+                        min={new Date().toISOString().slice(0, 10)}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, color: T.textDim, fontFamily: 'JetBrains Mono', textTransform: 'uppercase', marginBottom: 4 }}>Time</label>
+                      <input
+                        type="time"
+                        value={customTime}
+                        onChange={e => setCustomTime(e.target.value)}
+                        className="vvs-input"
+                      />
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {['17:30', '18:00', '18:30', '19:00', '20:00'].map(t => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setCustomTime(t)}
+                            className="px-2 py-1 rounded text-xs font-mono"
+                            style={{ background: customTime === t ? 'rgba(8,145,178,0.2)' : T.input, color: customTime === t ? '#22D3EE' : T.textMid, border: `1px solid ${customTime === t ? '#0891B2' : T.cardBorder}` }}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      disabled={!customDate || !!busy}
+                      onClick={bookCustomSlot}
+                      className="btn-copper w-full py-2.5 rounded-lg text-sm font-semibold mt-1"
+                    >
+                      {busy === 'schedule' ? 'Booking…' : 'Confirm this appointment ✓'}
+                    </button>
+                  </div>
+                ) : groups.length === 0 ? (
+                  <div className="mb-3">
+                    <p style={{ fontSize: 12, color: T.textMid, marginBottom: 8 }}>No route slots in normal hours.</p>
+                    <button onClick={() => setShowCustom(true)} className="btn-water w-full py-2 rounded-lg text-xs font-semibold">
+                      🌙 Pick after-hours / custom time
+                    </button>
+                  </div>
                 ) : (
                   <div className="flex flex-col gap-2 mb-3">
                     {groups.flatMap(g => g.slots.map(s => (
@@ -277,7 +413,7 @@ function Editor({ job, photoUrl, jobId, qc, T }: { job: Job; photoUrl: string | 
                     )))}
                   </div>
                 )}
-                {selectedSlot && (
+                {selectedSlot && !showCustom && (
                   <button
                     disabled={!!busy}
                     onClick={() => run('schedule', async () => {

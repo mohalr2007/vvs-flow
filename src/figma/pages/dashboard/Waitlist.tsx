@@ -11,16 +11,20 @@ import type { WaitlistEntry } from '@/lib/vvs-data';
 function errMsg(e: unknown) { return e instanceof Error ? e.message : 'Something went wrong'; }
 type Match = { entry: WaitlistEntry; score: number; breakdown: { label: string; points: number }[]; eligible: boolean };
 
-function UrgencyBadge({ v }: { v: string }) {
-  const cfg = v === 'High' ? { bg: 'rgba(239,68,68,0.1)', c: '#F87171', b: 'rgba(239,68,68,0.2)' }
-    : v === 'Normal' ? { bg: 'rgba(234,179,8,0.1)', c: '#FBBF24', b: 'rgba(234,179,8,0.2)' }
+function UrgencyBadge({ v }: { v?: string | null }) {
+  const safe = v || 'Normal';
+  const cfg = safe === 'High' || safe === 'Emergency' ? { bg: 'rgba(239,68,68,0.1)', c: '#F87171', b: 'rgba(239,68,68,0.2)' }
+    : safe === 'Normal' ? { bg: 'rgba(234,179,8,0.1)', c: '#FBBF24', b: 'rgba(234,179,8,0.2)' }
     : { bg: 'rgba(34,197,94,0.1)', c: '#4ADE80', b: 'rgba(34,197,94,0.2)' };
-  return <span style={{ fontFamily: 'JetBrains Mono', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 10, background: cfg.bg, color: cfg.c, border: `1px solid ${cfg.b}` }}>{v}</span>;
+  return <span style={{ fontFamily: 'JetBrains Mono', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 10, background: cfg.bg, color: cfg.c, border: `1px solid ${cfg.b}` }}>{safe}</span>;
 }
 
-function StatusBadge({ v }: { v: string }) {
-  const cfg = v === 'offered' ? { bg: 'rgba(8,145,178,0.1)', c: '#0891B2', b: 'rgba(8,145,178,0.2)' } : { bg: 'rgba(123,97,255,0.1)', c: '#7B61FF', b: 'rgba(123,97,255,0.2)' };
-  return <span style={{ fontFamily: 'JetBrains Mono', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 10, background: cfg.bg, color: cfg.c, border: `1px solid ${cfg.b}` }}>{v}</span>;
+function StatusBadge({ v }: { v?: string | null }) {
+  const safe = v || 'waiting';
+  const cfg = safe === 'offered' ? { bg: 'rgba(8,145,178,0.1)', c: '#0891B2', b: 'rgba(8,145,178,0.2)' }
+    : safe === 'booked' ? { bg: 'rgba(34,197,94,0.1)', c: '#4ADE80', b: 'rgba(34,197,94,0.2)' }
+    : { bg: 'rgba(123,97,255,0.1)', c: '#7B61FF', b: 'rgba(123,97,255,0.2)' };
+  return <span style={{ fontFamily: 'JetBrains Mono', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 10, background: cfg.bg, color: cfg.c, border: `1px solid ${cfg.b}` }}>{safe}</span>;
 }
 
 function WaitlistCard({ entry, T, onDelete, onBook }: {
@@ -33,13 +37,16 @@ function WaitlistCard({ entry, T, onDelete, onBook }: {
   const [deleting, setDeleting] = useState(false);
   const deleteFn = useServerFn(waitlistService.delete);
 
+  const name = entry.customer_name || 'Customer';
+  const initial = name.trim().charAt(0).toUpperCase() || 'C';
+
   const handleDelete = async () => {
-    if (!confirm(`Remove ${entry.customer_name} from the waitlist?`)) return;
+    if (!confirm(`Remove ${name} from the waitlist?`)) return;
     setDeleting(true);
     try {
       await deleteFn({ data: { id: entry.id } });
       onDelete(entry.id);
-      toast.success(`${entry.customer_name} removed from waitlist`);
+      toast.success(`${name} removed from waitlist`);
     } catch (e) {
       toast.error(errMsg(e));
     } finally {
@@ -47,10 +54,14 @@ function WaitlistCard({ entry, T, onDelete, onBook }: {
     }
   };
 
+  const createdDate = entry.created_at ? new Date(entry.created_at) : new Date();
+  const dateStr = !isNaN(createdDate.getTime()) ? createdDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—';
+
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: T.cardAlt, border: `1px solid ${open ? T.cardBorderStrong : T.cardBorder}`, transition: 'border-color 0.2s' }}>
       {/* Header row — always visible, clickable */}
       <button
+        type="button"
         onClick={() => setOpen(v => !v)}
         className="w-full text-left px-4 py-3 flex items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors"
         style={{ cursor: 'pointer', background: 'none', border: 'none' }}
@@ -58,20 +69,20 @@ function WaitlistCard({ entry, T, onDelete, onBook }: {
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {/* Avatar initial */}
           <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(123,97,255,0.12)', border: '1px solid rgba(123,97,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'Fraunces, serif', fontSize: 14, color: '#7B61FF', fontWeight: 400 }}>
-            {entry.customer_name.charAt(0).toUpperCase()}
+            {initial}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span style={{ fontFamily: 'Fraunces, serif', fontSize: 15, fontWeight: 400, color: T.text }}>{entry.customer_name}</span>
+              <span style={{ fontFamily: 'Fraunces, serif', fontSize: 15, fontWeight: 400, color: T.text }}>{name}</span>
               <UrgencyBadge v={entry.urgency} />
               <StatusBadge v={entry.status} />
             </div>
-            <div style={{ fontSize: 12, color: T.textMid, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.title ?? 'No description'}</div>
+            <div style={{ fontSize: 12, color: T.textMid, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.title || 'Plumbing request'}</div>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
           <span style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: T.textDim }}>
-            {new Date(entry.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+            {dateStr}
           </span>
           <span style={{ color: T.textDim, fontSize: 14, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>▾</span>
         </div>
@@ -99,6 +110,7 @@ function WaitlistCard({ entry, T, onDelete, onBook }: {
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2">
             <button
+              type="button"
               onClick={() => onBook(entry)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
               style={{ background: 'rgba(8,145,178,0.1)', color: '#0891B2', border: '1px solid rgba(8,145,178,0.25)', cursor: 'pointer' }}
@@ -115,6 +127,7 @@ function WaitlistCard({ entry, T, onDelete, onBook }: {
               </a>
             )}
             <button
+              type="button"
               onClick={handleDelete}
               disabled={deleting}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ml-auto"
@@ -136,17 +149,23 @@ function BookModal({ entry, T, onClose, onDone }: {
   onDone: () => void;
 }) {
   const bookFn = useServerFn(waitlistService.bookDirect);
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('08:00');
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState('18:00');
   const [busy, setBusy] = useState(false);
 
   const handle = async () => {
-    if (!date) return;
+    if (!date) {
+      toast.error('Please select a date');
+      return;
+    }
     setBusy(true);
     try {
-      const iso = new Date(`${date}T${time}:00`).toISOString();
-      await bookFn({ data: { waitlistId: entry.id, scheduledAt: iso } });
-      toast.success(`Appointment created for ${entry.customer_name}`);
+      const dt = new Date(`${date}T${time}:00`);
+      if (isNaN(dt.getTime())) {
+        throw new Error('Invalid date or time');
+      }
+      await bookFn({ data: { waitlistId: entry.id, scheduledAt: dt.toISOString() } });
+      toast.success(`Appointment confirmed for ${entry.customer_name} on ${date} at ${time}`);
       onDone();
     } catch (e) {
       toast.error(errMsg(e));
@@ -159,7 +178,13 @@ function BookModal({ entry, T, onClose, onDone }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(3,14,28,0.85)', backdropFilter: 'blur(12px)' }}>
       <div className="w-full max-w-sm rounded-2xl p-6 animate-scale-in" style={{ background: T.card, border: `1px solid ${T.cardBorderStrong}` }}>
         <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 300, color: T.text, marginBottom: 4 }}>Book appointment</h2>
-        <p style={{ fontSize: 13, color: T.textMid, marginBottom: 20 }}>for <strong style={{ color: T.text }}>{entry.customer_name}</strong> — {entry.title}</p>
+        <p style={{ fontSize: 13, color: T.textMid, marginBottom: 16 }}>for <strong style={{ color: T.text }}>{entry.customer_name}</strong> — {entry.title || 'Plumbing request'}</p>
+
+        <div className="p-3 rounded-xl mb-4" style={{ background: 'rgba(8,145,178,0.06)', border: '1px solid rgba(8,145,178,0.2)' }}>
+          <p style={{ fontSize: 11, color: '#22D3EE', margin: 0 }}>
+            ✓ Any hour accepted: you can choose daytime, evening, or after-hours slots.
+          </p>
+        </div>
 
         <div className="flex flex-col gap-4 mb-6">
           <div>
@@ -179,14 +204,33 @@ function BookModal({ entry, T, onClose, onDone }: {
               value={time}
               onChange={e => setTime(e.target.value)}
               className="vvs-input"
-              step={900}
             />
+            {/* Quick preset chips including after-hours */}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {['08:00', '11:00', '14:00', '17:30', '18:00', '19:00', '20:00'].map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTime(t)}
+                  className="px-2 py-1 rounded text-xs font-mono"
+                  style={{
+                    background: time === t ? 'rgba(8,145,178,0.2)' : T.input,
+                    color: time === t ? '#22D3EE' : T.textMid,
+                    border: `1px solid ${time === t ? '#0891B2' : T.cardBorder}`,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 btn-ghost py-3 rounded-xl text-sm font-semibold">Cancel</button>
+          <button type="button" onClick={onClose} className="flex-1 btn-ghost py-3 rounded-xl text-sm font-semibold">Cancel</button>
           <button
+            type="button"
             onClick={handle}
             disabled={!date || busy}
             className="flex-1 btn-water py-3 rounded-xl text-sm font-semibold"
@@ -206,14 +250,32 @@ export default function Waitlist() {
   const get = useServerFn(waitlistService.get);
   const matchFn = useServerFn(waitlistService.match);
   const send = useServerFn(waitlistService.sendOffer);
-  const q = useQuery({ queryKey: ['waitlist'], queryFn: () => get(), refetchInterval: 8000, retry: 2 });
+  const clearAllFn = useServerFn(waitlistService.clearAll);
+
+  const q = useQuery({ queryKey: ['waitlist'], queryFn: () => get(), refetchInterval: 10000, retry: 2 });
   const [slotId, setSlotId] = useState<string | null>(null);
   const [matches, setMatches] = useState<Match[] | null>(null);
   const [selected, setSelected] = useState<Match | null>(null);
   const [scanning, setScanning] = useState(false);
   const [sending, setSending] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [bookTarget, setBookTarget] = useState<WaitlistEntry | null>(null);
+
   const refetch = useCallback(() => { qc.invalidateQueries({ queryKey: ['waitlist'] }); }, [qc]);
+
+  const handleClearAll = async () => {
+    if (!confirm('Clear all waitlist entries and pending offers? This will remove all default test candidates.')) return;
+    setClearing(true);
+    try {
+      await clearAllFn();
+      await refetch();
+      toast.success('Waitlist cleared');
+    } catch (e) {
+      toast.error(errMsg(e));
+    } finally {
+      setClearing(false);
+    }
+  };
 
   if (q.isLoading) return (
     <DashboardLayout>
@@ -228,14 +290,29 @@ export default function Waitlist() {
       <div className="p-4 md:p-8 max-w-5xl mx-auto text-center py-16">
         <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.4 }}>⚠</div>
         <p style={{ fontSize: 14, color: '#E53935', marginBottom: 16 }}>Could not load waitlist.</p>
-        <button onClick={refetch} className="btn-water px-6 py-3 rounded-xl text-sm font-semibold">Try again</button>
+        <button type="button" onClick={refetch} className="btn-water px-6 py-3 rounded-xl text-sm font-semibold">Try again</button>
       </div>
     </DashboardLayout>
   );
 
   const d = q.data;
-  const slot = d.slots.find(s => s.id === slotId) ?? d.slots[0];
-  const offer = slot ? d.offers.find(o => o.source_job_id === slot.id && (o.status === 'pending' || o.status === 'accepted')) : undefined;
+  const entriesList = d.entries ?? [];
+  const slotsList = d.slots ?? [];
+  const offersList = d.offers ?? [];
+
+  const slot = slotsList.find(s => s.id === slotId) ?? slotsList[0];
+  const offer = slot ? offersList.find(o => o.source_job_id === slot.id && (o.status === 'pending' || o.status === 'accepted')) : undefined;
+
+  // Safely extract candidate info from offer relation
+  const getOfferCandidate = () => {
+    if (!offer) return { name: 'Customer', email: null };
+    const ent = offer.waitlist_entries;
+    if (Array.isArray(ent)) {
+      return { name: ent[0]?.customer_name || 'Customer', email: ent[0]?.email || null };
+    }
+    return { name: (ent as any)?.customer_name || 'Customer', email: (ent as any)?.email || null };
+  };
+  const { name: candidateName, email: candidateEmail } = getOfferCandidate();
 
   const scan = async () => {
     if (!slot) return;
@@ -271,9 +348,27 @@ export default function Waitlist() {
       )}
 
       <div className="p-4 md:p-8 max-w-5xl mx-auto animate-fade-up">
-        <div className="mb-8">
-          <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 30, fontWeight: 300, color: T.text, marginBottom: 4 }}>Waitlist</h1>
-          <p style={{ fontSize: 13, color: T.textMid }}>Manage registrations and turn cancellations into booked appointments.</p>
+        <div className="flex items-start justify-between flex-wrap gap-4 mb-8">
+          <div>
+            <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 30, fontWeight: 300, color: T.text, marginBottom: 4 }}>Waitlist</h1>
+            <p style={{ fontSize: 13, color: T.textMid }}>Manage registrations and turn cancellations into booked appointments.</p>
+          </div>
+          {entriesList.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              disabled={clearing}
+              className="px-3 py-1.5 rounded-lg text-xs font-mono transition-all"
+              style={{
+                background: 'rgba(239,68,68,0.06)',
+                color: '#EF5350',
+                border: '1px solid rgba(239,68,68,0.2)',
+                cursor: clearing ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {clearing ? 'Clearing…' : '🗑 Clear all entries'}
+            </button>
+          )}
         </div>
 
         {/* ── People waiting ─────────────────────────────────────── */}
@@ -281,18 +376,18 @@ export default function Waitlist() {
           <div className="flex items-center gap-3 mb-4">
             <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 20, fontWeight: 300, color: T.text }}>People waiting</h2>
             <span style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#7B61FF', background: 'rgba(123,97,255,0.12)', border: '1px solid rgba(123,97,255,0.2)', borderRadius: 20, padding: '2px 10px' }}>
-              {d.entries.length}
+              {entriesList.length}
             </span>
           </div>
 
-          {d.entries.length === 0 ? (
+          {entriesList.length === 0 ? (
             <div className="rounded-2xl p-8 text-center" style={{ background: T.cardAlt, border: `1px solid ${T.cardBorder}` }}>
               <div style={{ fontSize: 36, marginBottom: 8, opacity: 0.35 }}>⏳</div>
               <p style={{ fontSize: 13, color: T.textDim }}>Nobody on the waitlist yet. New registrations from <strong style={{ color: T.textMid }}>/waitlist</strong> appear here.</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {d.entries.map((e: WaitlistEntry) => (
+              {entriesList.map((e: WaitlistEntry) => (
                 <WaitlistCard
                   key={e.id}
                   entry={e}
@@ -310,13 +405,13 @@ export default function Waitlist() {
           Slot recovery
         </div>
 
-        {d.slots.length > 1 && (
+        {slotsList.length > 1 && (
           <div className="flex gap-2 overflow-x-auto mb-4">
-            {d.slots.map(s => (
-              <button key={s.id} onClick={() => { setSlotId(s.id); setMatches(null); setSelected(null); }}
+            {slotsList.map(s => (
+              <button key={s.id} type="button" onClick={() => { setSlotId(s.id); setMatches(null); setSelected(null); }}
                 className="px-3 py-1.5 rounded-lg text-xs font-mono"
                 style={{ background: slot?.id === s.id ? 'rgba(8,145,178,0.15)' : T.input, color: slot?.id === s.id ? '#0891B2' : T.textMid, border: `1px solid ${T.cardBorder}`, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                {fmtShortDay(s.scheduled_at!)} · {fmtRange(s.scheduled_at!, s.duration_min).split('–')[0]}
+                {s.scheduled_at ? fmtShortDay(s.scheduled_at) : 'Slot'} · {s.scheduled_at ? fmtRange(s.scheduled_at, s.duration_min).split('–')[0] : ''}
               </button>
             ))}
           </div>
@@ -335,8 +430,8 @@ export default function Waitlist() {
               </div>
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
-                  <div style={{ fontFamily: 'Fraunces, serif', fontSize: 24, color: T.text, fontWeight: 300 }}>{fmtShortDay(slot.scheduled_at!)}</div>
-                  <div style={{ fontFamily: 'JetBrains Mono', fontSize: 30, color: '#0891B2', fontWeight: 500, lineHeight: 1.1 }}>{fmtRange(slot.scheduled_at!, slot.duration_min)}</div>
+                  <div style={{ fontFamily: 'Fraunces, serif', fontSize: 24, color: T.text, fontWeight: 300 }}>{slot.scheduled_at ? fmtShortDay(slot.scheduled_at) : 'Upcoming slot'}</div>
+                  <div style={{ fontFamily: 'JetBrains Mono', fontSize: 30, color: '#0891B2', fontWeight: 500, lineHeight: 1.1 }}>{slot.scheduled_at ? fmtRange(slot.scheduled_at, slot.duration_min) : `${slot.duration_min} min`}</div>
                   <div style={{ fontSize: 13, color: T.textMid, marginTop: 4 }}>{slot.duration_min} min · Zone {slot.zone} · was "{slot.title}"</div>
                 </div>
                 <div className="text-right">
@@ -350,15 +445,15 @@ export default function Waitlist() {
               <div className="rounded-2xl p-6 mb-8 text-center animate-scale-in" style={{ background: 'rgba(34,197,94,0.08)', border: '2px solid rgba(34,197,94,0.3)' }}>
                 <div style={{ fontSize: 36, marginBottom: 8 }}>✓</div>
                 <div style={{ fontFamily: 'Fraunces, serif', fontSize: 24, color: '#22C55E', fontWeight: 300, marginBottom: 4 }}>Slot recovered!</div>
-                <div style={{ fontSize: 13, color: T.textMid }}>{offer.waitlist_entries?.customer_name} accepted this slot.</div>
+                <div style={{ fontSize: 13, color: T.textMid }}>{candidateName} accepted this slot.</div>
               </div>
             ) : offer ? (
               <div className="p-5 rounded-2xl text-center mb-8" style={{ background: 'rgba(8,145,178,0.06)', border: `1px solid ${T.cardBorderStrong}` }}>
                 <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#0891B2', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>
-                  Offer sent to {offer.waitlist_entries?.customer_name}
+                  Offer sent to {candidateName}
                 </div>
                 <div className="flex gap-2 justify-center">
-                  <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/offer/${offer.token}`); toast.success('Offer link copied'); }}
+                  <button type="button" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/offer/${offer.token}`); toast.success('Offer link copied'); }}
                     className="py-2 px-4 rounded-lg text-xs font-mono" style={{ background: T.input, color: T.textMid, border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer' }}>
                     Copy link
                   </button>
@@ -368,7 +463,7 @@ export default function Waitlist() {
                   </a>
                 </div>
                 <p style={{ fontSize: 11, color: T.textMid, marginTop: 10 }}>
-                  {offer.waitlist_entries?.email ? 'The customer was notified by email.' : 'No email on file — share the link manually.'}
+                  {candidateEmail ? 'The customer was notified by email.' : 'No email on file — share the link manually.'}
                 </p>
               </div>
             ) : scanning ? (
@@ -380,14 +475,14 @@ export default function Waitlist() {
               <div className="text-center py-12">
                 <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.4 }}>◉</div>
                 <p style={{ fontSize: 14, color: T.textMid, marginBottom: 24 }}>Find the best-matched client from your waitlist for this slot.</p>
-                <button onClick={scan} className="btn-water px-8 py-4 rounded-xl font-semibold">Find best match →</button>
+                <button type="button" onClick={scan} className="btn-water px-8 py-4 rounded-xl font-semibold">Find best match →</button>
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 <div className="lg:col-span-3">
                   <div className="flex items-center justify-between mb-4">
                     <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: 18, color: T.text, fontWeight: 400 }}>Ranked matches</h3>
-                    <button onClick={scan} style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#0891B2', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.06em' }}>
+                    <button type="button" onClick={scan} style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#0891B2', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.06em' }}>
                       Scan again →
                     </button>
                   </div>
@@ -396,13 +491,13 @@ export default function Waitlist() {
                   ) : (
                     <div className="flex flex-col gap-2">
                       {matches.map((m, i) => (
-                        <button key={m.entry.id} onClick={() => setSelected(m)} disabled={!m.eligible}
+                        <button key={m.entry.id} type="button" onClick={() => setSelected(m)} disabled={!m.eligible}
                           className="text-left p-4 rounded-xl transition-all"
                           style={{ background: selected?.entry.id === m.entry.id ? 'rgba(8,145,178,0.08)' : T.cardAlt, border: `1px solid ${selected?.entry.id === m.entry.id ? '#0891B2' : T.cardBorder}`, cursor: m.eligible ? 'pointer' : 'not-allowed', opacity: m.eligible ? 1 : 0.5 }}>
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <span style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: T.textDim }}>#{i + 1}</span>
-                              <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{m.entry.customer_name}</span>
+                              <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{m.entry.customer_name || 'Customer'}</span>
                             </div>
                             <span style={{ fontFamily: 'JetBrains Mono', fontSize: 18, color: i === 0 ? '#0891B2' : T.textMid, fontWeight: 600 }}>{m.score}</span>
                           </div>
@@ -415,8 +510,8 @@ export default function Waitlist() {
                     </div>
                   )}
                   {selected && (
-                    <button onClick={doSend} disabled={sending} className="btn-water w-full py-4 rounded-xl font-semibold mt-4">
-                      {sending ? 'Sending…' : `Send 15-min offer to ${selected.entry.customer_name.split(' ')[0]} →`}
+                    <button type="button" onClick={doSend} disabled={sending} className="btn-water w-full py-4 rounded-xl font-semibold mt-4">
+                      {sending ? 'Sending…' : `Send 15-min offer to ${(selected.entry.customer_name || 'Customer').trim().split(' ')[0]} →`}
                     </button>
                   )}
                 </div>

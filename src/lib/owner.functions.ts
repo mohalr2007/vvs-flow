@@ -155,15 +155,17 @@ export const approveJob = createServerFn({ method: "POST" }).middleware([require
   return { groups: findSlots({ jobs: jobs ?? [], now, duration: data.fields.duration_min, zone: data.fields.zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour, restDays: settings.rest_days }) };
 });
 
-export const scheduleJob = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ slotStart: z.string().datetime() }).parse(d)).handler(async ({ context, data }) => {
+export const scheduleJob = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ slotStart: z.string() }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
   const { data: job } = await db.from("jobs").select("customer_name,email,title,ref,access_token,duration_min").eq("id", data.id).single();
-  const { error } = await db.from("jobs").update({ scheduled_at: data.slotStart, status: "confirmed" }).eq("id", data.id);
+  const scheduledDate = new Date(data.slotStart);
+  const startIso = isNaN(scheduledDate.getTime()) ? data.slotStart : scheduledDate.toISOString();
+  const { error } = await db.from("jobs").update({ scheduled_at: startIso, status: "confirmed" }).eq("id", data.id);
   if (error) throw new Error("The appointment could not be scheduled.");
   // Send reminder emails based on how far the appointment is
   if (job?.email) {
     const { sendEmail, reminder24hEmail, reminder1hEmail, bookingUrl } = await import("./email.server");
-    const apptTime = new Date(data.slotStart);
+    const apptTime = new Date(startIso);
     const now = new Date();
     const msUntil = apptTime.getTime() - now.getTime();
     const hoursUntil = msUntil / 3600000;
@@ -171,13 +173,10 @@ export const scheduleJob = createServerFn({ method: "POST" }).middleware([requir
     const accessUrl = job.access_token ? bookingUrl(job.access_token) : null;
     const emailParams = { name: job.customer_name, title: job.title, when, ref: job.ref, accessUrl };
     if (hoursUntil >= 24) {
-      // More than 24h away: schedule reminder 24h before (send now as informational + will resend at T-24h)
-      // For this demo-friendly approach: send 24h reminder immediately as "your appointment is scheduled"
       const mail24 = reminder24hEmail(emailParams);
       await sendEmail(job.email, mail24.subject, mail24.html).catch(() => null);
     }
     if (hoursUntil <= 2 && hoursUntil > 0) {
-      // Within 2 hours: send 1h reminder immediately (same-day booking close to the time)
       const mail1h = reminder1hEmail(emailParams);
       await sendEmail(job.email, mail1h.subject, mail1h.html).catch(() => null);
     }
@@ -257,7 +256,7 @@ export const sendOffer = createServerFn({ method: "POST" }).middleware([requireS
 /** Remove a waitlist entry permanently (owner action). */
 export const deleteWaitlistEntry = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d) => z.object({ id: z.string() }).parse(d))
   .handler(async ({ context, data }) => {
     const { db } = await guard(context);
     // Also cancel any pending offers for this entry
@@ -266,62 +265,90 @@ export const deleteWaitlistEntry = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Owner books a slot directly for a waitlist candidate at a chosen time. */
+/** Remove all waitlist entries and associated offers (owner action). */
+export const clearWaitlist = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { db } = await guard(context);
+    await db.from("offers").delete().not("id", "is", null);
+    await db.from("waitlist_entries").delete().not("id", "is", null);
+    return { ok: true };
+  });
+
+/** Owner books a slot directly for a waitlist candidate at a chosen time (any hour including after-hours/evenings). */
 export const bookFromWaitlist = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z.object({
-      waitlistId: z.string().uuid(),
-      scheduledAt: z.string(),  // ISO datetime
+      waitlistId: z.string(),
+      scheduledAt: z.string(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
     const { db } = await guard(context);
-    const { data: entry } = await db.from("waitlist_entries").select("*").eq("id", data.waitlistId).single();
-    if (!entry) throw new Error("Waitlist entry not found.");
-    // Create the job directly
+    const { data: entry, error: fetchErr } = await db.from("waitlist_entries").select("*").eq("id", data.waitlistId).single();
+    if (fetchErr || !entry) throw new Error("Waitlist entry not found.");
+
+    // Parse chosen date/time safely (accepts any custom time/evening/weekend)
+    const scheduledDate = new Date(data.scheduledAt);
+    const scheduledIso = isNaN(scheduledDate.getTime()) ? new Date().toISOString() : scheduledDate.toISOString();
+
     const accessToken = crypto.randomUUID();
+    const shortRef = "W" + Math.floor(1000 + Math.random() * 9000);
+
     const { data: job, error } = await db.from("jobs").insert({
+      ref: shortRef,
       customer_name: entry.customer_name,
-      phone: entry.phone,
-      email: entry.email,
-      title: entry.title,
-      address: "",
-      zone: entry.zone,
-      duration_min: entry.duration_min,
-      urgency: entry.urgency,
-      status: "scheduled",
-      scheduled_at: data.scheduledAt,
-      value: entry.value,
+      phone: entry.phone || "",
+      email: entry.email || "",
+      title: entry.title || "Waitlist appointment",
+      description: `Booked by owner from waitlist. Request: ${entry.title || ""}`,
+      address: entry.zone ? `Zone ${entry.zone}` : "Västerås",
+      zone: entry.zone || "722",
+      duration_min: entry.duration_min || 60,
+      urgency: entry.urgency || "Normal",
+      status: "confirmed",
+      scheduled_at: scheduledIso,
+      value: entry.value || 0,
       access_token: accessToken,
-      source: "waitlist",
-      notes: `Booked from waitlist. Original request: ${entry.title}`,
+      confidence: 100,
     }).select("id").single();
-    if (error) throw new Error("Could not create appointment.");
-    // Mark waitlist entry as fulfilled
-    await db.from("waitlist_entries").update({ status: "offered" }).eq("id", data.waitlistId);
+
+    if (error) {
+      console.error("bookFromWaitlist insert error:", error);
+      throw new Error("Could not create appointment: " + error.message);
+    }
+
+    // Mark waitlist entry as booked
+    await db.from("waitlist_entries").update({ status: "booked" }).eq("id", data.waitlistId);
     // Cancel any pending offers for this entry
     await db.from("offers").update({ status: "cancelled" }).eq("waitlist_id", data.waitlistId).eq("status", "pending");
+
     // Send confirmation email if email present
     if (entry.email) {
-      const { sendEmail, layout } = await import("./email.server");
-      const when = new Date(data.scheduledAt).toLocaleString("en-GB", {
+      const { sendEmail, layout, bookingUrl } = await import("./email.server");
+      const when = scheduledDate.toLocaleString("en-GB", {
         timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
       });
+      const accessLink = bookingUrl(accessToken);
       const html = layout("Appointment Confirmed", `
         <p style="margin: 0 0 14px 0;">Hello <strong>${entry.customer_name}</strong>,</p>
         <p style="margin: 0 0 16px 0; color: #475569;">
-          Mats has confirmed your appointment from the waitlist.
+          Mats has reviewed your request from the waitlist and booked your appointment.
         </p>
         <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0;">
-          <p style="margin: 0 0 4px 0; font-size: 11px; color: #166534; font-family: monospace; text-transform: uppercase;">Scheduled</p>
+          <p style="margin: 0 0 4px 0; font-size: 11px; color: #166534; font-family: monospace; text-transform: uppercase;">Confirmed Appointment</p>
           <p style="margin: 0; font-size: 18px; font-weight: 700; color: #15803d;">${when}</p>
-          <p style="margin: 6px 0 0 0; font-size: 13px; color: #166534;">${entry.title}</p>
+          <p style="margin: 6px 0 0 0; font-size: 13px; color: #166534;">${entry.title || "Plumbing Service"}</p>
         </div>
+        <p style="margin: 0 0 16px 0; font-size: 13px; color: #475569;">
+          Reference: <strong>${shortRef}</strong>
+        </p>
+        ${accessLink ? `<div style="margin-top: 16px;"><a href="${accessLink}" style="background-color: #0891b2; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;">View Appointment & Access Details →</a></div>` : ""}
       `, "Ekström VVS");
-      await sendEmail(entry.email, `✓ Appointment confirmed — Ekström VVS`, html).catch(() => null);
+      await sendEmail(entry.email, `✓ Appointment confirmed (${shortRef}) — Ekström VVS`, html).catch(() => null);
     }
-    return { jobId: job.id, ok: true };
+    return { jobId: job?.id ?? "", ok: true };
   });
 
 
