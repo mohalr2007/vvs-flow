@@ -36,12 +36,12 @@ export async function sendEmail(
   html: string,
 ): Promise<{ sent: boolean; reason?: string }> {
   // 1. EmailJS support (100% free, no domain needed, works directly with Gmail)
-  const emailjsServiceId = process.env["EMAILJS_SERVICE_ID"] || "VVS";
-  const emailjsTemplateId = process.env["EMAILJS_TEMPLATE_ID"] || "template_889qfif";
-  const emailjsPublicKey = process.env["EMAILJS_PUBLIC_KEY"] || "WMKnGylJlm0kUN8g2";
-  const emailjsPrivateKey = process.env["EMAILJS_PRIVATE_KEY"] || "BopuvPQv944TyBz9oCkdl";
+  const emailjsServiceId = process.env["EMAILJS_SERVICE_ID"];
+  const emailjsTemplateId = process.env["EMAILJS_TEMPLATE_ID"];
+  const emailjsPublicKey = process.env["EMAILJS_PUBLIC_KEY"];
+  const emailjsPrivateKey = process.env["EMAILJS_PRIVATE_KEY"];
 
-  if (emailjsServiceId && emailjsTemplateId) {
+  if (emailjsServiceId && emailjsTemplateId && emailjsPublicKey && emailjsPrivateKey) {
     try {
       const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
         method: "POST",

@@ -326,10 +326,10 @@ function SettingsForm({ s }: { s: Settings }) {
           Booking confirmations and waitlist offers are dispatched automatically via <strong>EmailJS</strong> (gratuit avec votre Gmail personnel) ou <strong>Resend</strong> :
         </p>
         <div className="p-2.5 rounded-lg text-[11px] font-mono mb-3 space-y-0.5" style={{ background: T.input, color: T.textDim, border: `1px solid ${T.cardBorder}` }}>
-          <div>EMAILJS_SERVICE_ID=service_... (depuis EmailJS &gt; Email Services)</div>
-          <div>EMAILJS_TEMPLATE_ID=template_... (depuis EmailJS &gt; Email Templates)</div>
-          <div>EMAILJS_PUBLIC_KEY=WMKnGylJlm0kUN8g2</div>
-          <div>EMAILJS_PRIVATE_KEY=BopuvPQv944TyBz9oCkdI</div>
+          <div>EMAILJS_SERVICE_ID=VVS (or service_...)</div>
+          <div>EMAILJS_TEMPLATE_ID=template_...</div>
+          <div>EMAILJS_PUBLIC_KEY=WMKn...</div>
+          <div>EMAILJS_PRIVATE_KEY=•••••••••••••••• (configured in Vercel / .env)</div>
         </div>
         <form onSubmit={handleTestEmail} className="flex flex-col sm:flex-row gap-2 items-center">
           <input
