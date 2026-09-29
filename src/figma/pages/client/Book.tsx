@@ -95,21 +95,21 @@ export default function Book() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Done | null>(null);
   const [accessChoice, setAccessChoice] = useState<string | null>(null);
+  const [noTime, setNoTime] = useState(false);
 
   const isProject = jobType === 'install';
   const lowConfidence = !!ai && ai.confidence < 60 && !isProject;
   const manual = !ai && !!aiError;
   const skipTime = isProject || lowConfidence || manual;
 
-  // steps array for progress bar; Access is always included (before Confirm)
+  // Access is now collected inline with the customer details (step 3).
   const steps = skipTime
-    ? ['Service', 'Details', 'Location', 'Access', 'Confirm']
-    : ['Service', 'Details', 'Location', 'Time', 'Access', 'Confirm'];
+    ? ['Service', 'Details', 'Location', 'Confirm']
+    : ['Service', 'Details', 'Location', 'Time', 'Confirm'];
 
   // Logical step numbers (1-indexed)
   const timeStep = skipTime ? null : 4;          // step 4 (skipped when skipTime)
-  const accessStep = skipTime ? 4 : 5;           // always present
-  const confirmStep = skipTime ? 5 : 6;          // last step
+  const confirmStep = skipTime ? 4 : 5;          // last step
 
   const stepIndex = typeof step === 'number' ? step : confirmStep;
 
@@ -129,6 +129,7 @@ export default function Book() {
     setSlotsNote('');
     setSubmitError('');
     setAccessChoice(null);
+    setNoTime(false);
   };
 
   // Reset all state on mount so visiting the page never keeps old form data
@@ -165,7 +166,7 @@ export default function Book() {
           kind: isProject ? 'project' : 'repair', ...form, address: loc.address || form.address, description,
           title: ai?.title ?? null, urgency: ai?.urgency ?? null, duration_min: ai?.duration_min ?? null,
           price_high: ai?.price_high ?? null, confidence: ai?.confidence ?? null, missing_fields: ai?.missing_fields ?? null,
-          slotStart: skipTime ? null : selectedSlot, photoPath, lat: loc.lat, lng: loc.lng,
+          slotStart: skipTime || noTime ? null : selectedSlot, photoPath, lat: loc.lat, lng: loc.lng,
           accessChoice: accessChoice ?? null,
         },
       });
@@ -174,7 +175,7 @@ export default function Book() {
       setSubmitError(errMsg(e));
       toast.error(errMsg(e));
       // Go back to time step on failure so user can pick another slot
-      if (!skipTime) { setStep(timeStep as Step); void loadSlots(); }
+      if (!skipTime && !noTime) { setStep(timeStep as Step); void loadSlots(); }
     } finally { setBusy(false); }
   }
 
