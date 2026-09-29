@@ -254,6 +254,77 @@ export const sendOffer = createServerFn({ method: "POST" }).middleware([requireS
   return { token: offer.token, secondsLeft: 900, emailed };
 });
 
+/** Remove a waitlist entry permanently (owner action). */
+export const deleteWaitlistEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { db } = await guard(context);
+    // Also cancel any pending offers for this entry
+    await db.from("offers").update({ status: "cancelled" }).eq("waitlist_id", data.id).eq("status", "pending");
+    await db.from("waitlist_entries").delete().eq("id", data.id);
+    return { ok: true };
+  });
+
+/** Owner books a slot directly for a waitlist candidate at a chosen time. */
+export const bookFromWaitlist = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      waitlistId: z.string().uuid(),
+      scheduledAt: z.string(),  // ISO datetime
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { db } = await guard(context);
+    const { data: entry } = await db.from("waitlist_entries").select("*").eq("id", data.waitlistId).single();
+    if (!entry) throw new Error("Waitlist entry not found.");
+    // Create the job directly
+    const accessToken = crypto.randomUUID();
+    const { data: job, error } = await db.from("jobs").insert({
+      customer_name: entry.customer_name,
+      phone: entry.phone,
+      email: entry.email,
+      title: entry.title,
+      address: "",
+      zone: entry.zone,
+      duration_min: entry.duration_min,
+      urgency: entry.urgency,
+      status: "scheduled",
+      scheduled_at: data.scheduledAt,
+      value: entry.value,
+      access_token: accessToken,
+      source: "waitlist",
+      notes: `Booked from waitlist. Original request: ${entry.title}`,
+    }).select("id").single();
+    if (error) throw new Error("Could not create appointment.");
+    // Mark waitlist entry as fulfilled
+    await db.from("waitlist_entries").update({ status: "offered" }).eq("id", data.waitlistId);
+    // Cancel any pending offers for this entry
+    await db.from("offers").update({ status: "cancelled" }).eq("waitlist_id", data.waitlistId).eq("status", "pending");
+    // Send confirmation email if email present
+    if (entry.email) {
+      const { sendEmail, layout } = await import("./email.server");
+      const when = new Date(data.scheduledAt).toLocaleString("en-GB", {
+        timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+      });
+      const html = layout("Appointment Confirmed", `
+        <p style="margin: 0 0 14px 0;">Hello <strong>${entry.customer_name}</strong>,</p>
+        <p style="margin: 0 0 16px 0; color: #475569;">
+          Mats has confirmed your appointment from the waitlist.
+        </p>
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0;">
+          <p style="margin: 0 0 4px 0; font-size: 11px; color: #166534; font-family: monospace; text-transform: uppercase;">Scheduled</p>
+          <p style="margin: 0; font-size: 18px; font-weight: 700; color: #15803d;">${when}</p>
+          <p style="margin: 6px 0 0 0; font-size: 13px; color: #166534;">${entry.title}</p>
+        </div>
+      `, "Ekström VVS");
+      await sendEmail(entry.email, `✓ Appointment confirmed — Ekström VVS`, html).catch(() => null);
+    }
+    return { jobId: job.id, ok: true };
+  });
+
+
 export const listLeads = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { db } = await guard(context);
   return (await db.from("leads").select("*").order("created_at", { ascending: false })).data ?? [];
