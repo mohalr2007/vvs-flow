@@ -466,34 +466,6 @@ export default function Book() {
           </div>
         )}
 
-        {/* ── Step accessStep: How will Mats get in? ──────── */}
-        {step === accessStep && (
-          <div className="animate-fade-up">
-            <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>How will Mats get in?</h2>
-            <p style={{ color: '#6DA8C4', marginBottom: 28, fontSize: 15 }}>Choose the access method so there's no delay on the day.</p>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {ACCESS_OPTIONS.map(opt => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setAccessChoice(opt)}
-                  className="text-left p-4 rounded-xl transition-all duration-200"
-                  style={{
-                    background: accessChoice === opt ? 'rgba(8,145,178,0.1)' : 'rgba(7,26,46,0.75)',
-                    border: `1px solid ${accessChoice === opt ? W : 'rgba(8,145,178,0.12)'}`,
-                    boxShadow: accessChoice === opt ? `0 0 0 3px rgba(8,145,178,0.15)` : 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>{ACCESS_ICONS[opt]}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#D9EEF7', marginBottom: 4 }}>{opt}</div>
-                  <div style={{ fontSize: 11, color: '#6DA8C4', lineHeight: 1.4 }}>{ACCESS_DESCS[opt]}</div>
-                </button>
-              ))}
-            </div>
-            <p style={{ fontSize: 12, color: '#2E5B75' }}>You can update this later from your booking link.</p>
-          </div>
-        )}
 
         {/* ── Step confirmStep: Review & confirm ──────────── */}
         {step === confirmStep && (
