@@ -47,6 +47,7 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
       });
       const marker = L.marker([BASE.lat, BASE.lng], { draggable: true, icon }).addTo(map);
       const onPinMove = async (lat: number, lng: number) => {
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
         try {
           const info = await locatePin({ data: { lat, lng } });
           setQuery(info.address);
@@ -79,11 +80,22 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
   }, []);
 
   const pick = async (lat: number, lng: number, label?: string, auto = false) => {
+    // Never call the server with incomplete coordinates.
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     let info: Awaited<ReturnType<typeof locatePin>>;
     try {
       info = await locatePin({ data: { lat, lng } });
     } catch {
-      return; // Coverage check failed — leave the location unpicked so Continue stays disabled.
+      // Coverage lookup unavailable: keep the picked address so the customer
+      // is never blocked, and let the server re-check on submit.
+      const address = label ?? query;
+      if (address.trim().length > 3) {
+        setQuery(address);
+        if (!auto) setOpen(false);
+        dirtyRef.current = false;
+        onChange({ address, lat, lng, inside: null, driveMinutes: null });
+      }
+      return;
     }
     const address = label ?? info.address;
     setQuery(address);

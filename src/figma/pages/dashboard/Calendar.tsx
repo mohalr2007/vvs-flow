@@ -162,7 +162,7 @@ export default function CalendarPage() {
             const totalEvents = data.jobs.filter((job) => job.scheduled_at).length + data.tasks.length;
 
             return (
-              <Card className="calendar-paper overflow-hidden rounded-lg border shadow-none">
+              <Card className="overflow-hidden rounded-lg border bg-card text-card-foreground shadow-none">
                 <div className="divide-y">
                   {days.map((day) => {
                     const parts = stockholmParts(day);

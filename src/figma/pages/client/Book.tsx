@@ -95,21 +95,21 @@ export default function Book() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Done | null>(null);
   const [accessChoice, setAccessChoice] = useState<string | null>(null);
+  const [noTime, setNoTime] = useState(false);
 
   const isProject = jobType === 'install';
   const lowConfidence = !!ai && ai.confidence < 60 && !isProject;
   const manual = !ai && !!aiError;
   const skipTime = isProject || lowConfidence || manual;
 
-  // steps array for progress bar; Access is always included (before Confirm)
+  // Access is now collected inline with the customer details (step 3).
   const steps = skipTime
-    ? ['Service', 'Details', 'Location', 'Access', 'Confirm']
-    : ['Service', 'Details', 'Location', 'Time', 'Access', 'Confirm'];
+    ? ['Service', 'Details', 'Location', 'Confirm']
+    : ['Service', 'Details', 'Location', 'Time', 'Confirm'];
 
   // Logical step numbers (1-indexed)
   const timeStep = skipTime ? null : 4;          // step 4 (skipped when skipTime)
-  const accessStep = skipTime ? 4 : 5;           // always present
-  const confirmStep = skipTime ? 5 : 6;          // last step
+  const confirmStep = skipTime ? 4 : 5;          // last step
 
   const stepIndex = typeof step === 'number' ? step : confirmStep;
 
@@ -129,12 +129,16 @@ export default function Book() {
     setSlotsNote('');
     setSubmitError('');
     setAccessChoice(null);
+    setNoTime(false);
   };
 
   // Reset all state on mount so visiting the page never keeps old form data
   useEffect(() => {
     changeJobType('repair');
     setJobType(null);
+    setDone(null);
+    setBusy(false);
+    setStep(1);
   }, []);
 
   async function runAi() {
@@ -165,7 +169,7 @@ export default function Book() {
           kind: isProject ? 'project' : 'repair', ...form, address: loc.address || form.address, description,
           title: ai?.title ?? null, urgency: ai?.urgency ?? null, duration_min: ai?.duration_min ?? null,
           price_high: ai?.price_high ?? null, confidence: ai?.confidence ?? null, missing_fields: ai?.missing_fields ?? null,
-          slotStart: skipTime ? null : selectedSlot, photoPath, lat: loc.lat, lng: loc.lng,
+          slotStart: skipTime || noTime ? null : selectedSlot, photoPath, lat: loc.lat, lng: loc.lng,
           accessChoice: accessChoice ?? null,
         },
       });
@@ -174,7 +178,7 @@ export default function Book() {
       setSubmitError(errMsg(e));
       toast.error(errMsg(e));
       // Go back to time step on failure so user can pick another slot
-      if (!skipTime) { setStep(timeStep as Step); void loadSlots(); }
+      if (!skipTime && !noTime) { setStep(timeStep as Step); void loadSlots(); }
     } finally { setBusy(false); }
   }
 
@@ -391,6 +395,32 @@ export default function Book() {
                   <input type="file" accept="image/*" className="sr-only" onChange={e => setPhoto(e.target.files?.[0] ?? null)} />
                 </label>
               </div>
+
+              {/* Access method — collected together with the customer details */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#6DA8C4', fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>How will Mats get in?</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {ACCESS_OPTIONS.map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setAccessChoice(opt)}
+                      className="text-left p-4 rounded-xl transition-all duration-200"
+                      style={{
+                        background: accessChoice === opt ? 'rgba(8,145,178,0.1)' : 'rgba(7,26,46,0.75)',
+                        border: `1px solid ${accessChoice === opt ? W : 'rgba(8,145,178,0.12)'}`,
+                        boxShadow: accessChoice === opt ? `0 0 0 3px rgba(8,145,178,0.15)` : 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ fontSize: 22, marginBottom: 6 }}>{ACCESS_ICONS[opt]}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#D9EEF7', marginBottom: 4 }}>{opt}</div>
+                      <div style={{ fontSize: 11, color: '#6DA8C4', lineHeight: 1.4 }}>{ACCESS_DESCS[opt]}</div>
+                    </button>
+                  ))}
+                </div>
+                <p style={{ fontSize: 12, color: '#2E5B75', marginTop: 8 }}>Optional — you can change this later from your booking link.</p>
+              </div>
             </div>
           </div>
         )}
@@ -439,34 +469,6 @@ export default function Book() {
           </div>
         )}
 
-        {/* ── Step accessStep: How will Mats get in? ──────── */}
-        {step === accessStep && (
-          <div className="animate-fade-up">
-            <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>How will Mats get in?</h2>
-            <p style={{ color: '#6DA8C4', marginBottom: 28, fontSize: 15 }}>Choose the access method so there's no delay on the day.</p>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {ACCESS_OPTIONS.map(opt => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setAccessChoice(opt)}
-                  className="text-left p-4 rounded-xl transition-all duration-200"
-                  style={{
-                    background: accessChoice === opt ? 'rgba(8,145,178,0.1)' : 'rgba(7,26,46,0.75)',
-                    border: `1px solid ${accessChoice === opt ? W : 'rgba(8,145,178,0.12)'}`,
-                    boxShadow: accessChoice === opt ? `0 0 0 3px rgba(8,145,178,0.15)` : 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>{ACCESS_ICONS[opt]}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#D9EEF7', marginBottom: 4 }}>{opt}</div>
-                  <div style={{ fontSize: 11, color: '#6DA8C4', lineHeight: 1.4 }}>{ACCESS_DESCS[opt]}</div>
-                </button>
-              ))}
-            </div>
-            <p style={{ fontSize: 12, color: '#2E5B75' }}>You can update this later from your booking link.</p>
-          </div>
-        )}
 
         {/* ── Step confirmStep: Review & confirm ──────────── */}
         {step === confirmStep && (
@@ -479,7 +481,7 @@ export default function Book() {
                 { label: 'Client', value: form.name || '—' },
                 { label: 'Address', value: form.address || '—' },
                 { label: 'Phone', value: form.phone || '—' },
-                { label: 'Time', value: skipTime ? (isProject ? "We'll contact you" : "We'll contact you to agree a time") : (selectedSlot ? `${fmtDay(selectedSlot)} · ${fmtRange(selectedSlot, ai?.duration_min ?? 60)}` : '—') },
+                { label: 'Time', value: skipTime || noTime || !selectedSlot ? (isProject ? "We'll contact you" : "We'll contact you to agree a time") : `${fmtDay(selectedSlot)} · ${fmtRange(selectedSlot, ai?.duration_min ?? 60)}` },
                 { label: 'Access', value: accessChoice ?? 'Not specified' },
                 { label: 'Estimate', value: ai && ai.price_high ? `${sek(ai.price_low)} – ${sek(ai.price_high)}` : isProject ? 'Site visit free of charge' : 'After assessment' },
               ].map((row, i, arr) => (
@@ -519,24 +521,31 @@ export default function Book() {
                 {analyzing ? 'Analysing request…' : 'Continue →'}
               </button>
             )}
-            {step === 3 && (
-              <button
-                onClick={() => void goNext()}
-                disabled={!form.name || (form.address.trim().length <= 5 && loc.address.trim().length <= 5) || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false}
-                className="btn-water flex-1 py-4 rounded-xl font-semibold"
-                style={{ opacity: !form.name || (form.address.trim().length <= 5 && loc.address.trim().length <= 5) || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false ? 0.4 : 1 }}
-              >
-                Continue →
-              </button>
-            )}
+            {step === 3 && (() => {
+              const detailsBlocked =
+                form.name.trim().length < 2 ||
+                (form.address.trim().length < 4 && loc.address.trim().length < 4) ||
+                form.phone.replace(/\D/g, '').length < 7 ||
+                loc.inside === false;
+              return (
+                <button
+                  onClick={() => void goNext()}
+                  disabled={detailsBlocked}
+                  className="btn-water flex-1 py-4 rounded-xl font-semibold"
+                  style={{ opacity: detailsBlocked ? 0.4 : 1 }}
+                >
+                  Continue →
+                </button>
+              );
+            })()}
             {step === 4 && !skipTime && (
-              <button onClick={goNext} disabled={!selectedSlot} className="btn-water flex-1 py-4 rounded-xl font-semibold"
-                style={{ opacity: !selectedSlot ? 0.4 : 1 }}>Continue →</button>
-            )}
-            {step === accessStep && (
-              <button onClick={goNext} className="btn-water flex-1 py-4 rounded-xl font-semibold">
-                Continue →
-              </button>
+              selectedSlot ? (
+                <button onClick={() => { setNoTime(false); void goNext(); }} className="btn-water flex-1 py-4 rounded-xl font-semibold">Continue →</button>
+              ) : (
+                <button onClick={() => { setNoTime(true); setSelectedSlot(null); void goNext(); }} className="btn-ghost flex-1 py-4 rounded-xl font-semibold">
+                  Continue without a time →
+                </button>
+              )
             )}
             {step === confirmStep && (
               <button onClick={goNext} disabled={busy} className="btn-water flex-1 py-4 rounded-xl font-semibold">
