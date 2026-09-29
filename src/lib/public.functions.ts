@@ -230,3 +230,61 @@ export const respondOffer = createServerFn({ method: "POST" })
     if (offer.source_job_id) await db.from("jobs").update({ status: "expired" }).eq("id", offer.source_job_id);
     return { status: "accepted" as const, accessToken: job?.access_token ?? null };
   });
+
+export const joinWaitlist = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    z.object({
+      name: z.string().min(1).max(80),
+      phone: z.string().max(40).optional(),
+      email: z.string().email(),
+      address: z.string().min(1).max(200),
+      title: z.string().max(120).optional(),
+      duration_min: z.number().int().min(15).max(480).optional(),
+      urgency: z.string().optional(),
+      flexibility: z.string().optional(),
+      lat: z.number().nullable().optional(),
+      lng: z.number().nullable().optional(),
+    }).parse(d)
+  )
+  .handler(async ({ data }) => {
+    const { db } = await context();
+    const zone = zoneFromAddress(data.address);
+    const { data: entry, error } = await db.from("waitlist_entries").insert({
+      customer_name: data.name,
+      phone: data.phone || "",
+      email: data.email,
+      title: data.title || "Plumbing request",
+      zone,
+      duration_min: data.duration_min || 60,
+      urgency: data.urgency || "Normal",
+      flexibility: data.flexibility || "Flexible",
+      status: "waiting",
+      value: 1800,
+    }).select("id").single();
+    if (error) throw new Error("Could not join waitlist. Please try again.");
+
+    if (data.email) {
+      const { sendEmail, layout } = await import("./email.server");
+      const content = `
+        <p style="margin: 0 0 14px 0; font-size: 15px;">Hello <strong>${data.name}</strong>,</p>
+        <p style="margin: 0 0 16px 0; color: #475569;">
+          You are now registered on the <strong>Ekström VVS Priority Waitlist</strong> for:
+        </p>
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0;">
+          <p style="margin: 0 0 4px 0; font-size: 11px; color: #166534; font-family: monospace; text-transform: uppercase;">Service Request</p>
+          <p style="margin: 0; font-size: 16px; font-weight: 700; color: #15803d;">${data.title || "Plumbing service"}</p>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: #166534;">Zone: ${zone} · Address: ${data.address}</p>
+        </div>
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0; font-size: 13px; color: #475569;">
+          <strong>⚡ How priority recovery works:</strong>
+          <p style="margin: 6px 0 0 0; line-height: 1.5;">
+            Whenever another customer cancels or reschedules on Mats's route near you, our system instantly selects the best match and sends an exclusive <strong>15-minute priority booking link</strong> straight to your email.
+          </p>
+        </div>
+      `;
+      const mailHtml = layout("Priority Waitlist Confirmation", content, "Ekström VVS • Priority Waitlist");
+      await sendEmail(data.email, `✓ Registered on Priority Waitlist · Ekström VVS`, mailHtml).catch(() => null);
+    }
+    return { ok: true, id: entry.id };
+  });
+

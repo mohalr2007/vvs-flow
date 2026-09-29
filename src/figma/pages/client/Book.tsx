@@ -21,7 +21,7 @@ const W = '#0891B2';
 const WL = '#22D3EE';
 
 type Ai = { title: string; summary: string; urgency: 'Low' | 'Normal' | 'High' | 'Emergency'; duration_min: number; price_low: number; price_high: number; confidence: number; needs_site_visit: boolean; location_hint: string | null; missing_fields: string[] };
-type Done = Awaited<ReturnType<typeof bookingService.create>>;
+type Done = Awaited<ReturnType<typeof bookingService.create>> | { type: 'waitlist'; ref: string; accessToken: null; scheduledAt: null; eta: null };
 
 const EMPTY_LOC: PickedLocation = { address: '', lat: null, lng: null, inside: null, driveMinutes: null };
 
@@ -77,6 +77,7 @@ function StepProgress({ current, steps }: { current: number; steps: string[] }) 
 export default function Book() {
   const navigate = useNavigate();
   const understand = useServerFn(bookingService.understand), getSlots = useServerFn(bookingService.slots), create = useServerFn(bookingService.create);
+  const joinWaitlistFn = useServerFn(bookingService.joinWaitlist);
   const [step, setStep] = useState<Step>(1);
   const [jobType, setJobType] = useState<'repair' | 'install' | null>(null);
   const [leaking, setLeaking] = useState<boolean | null>(null);
@@ -93,6 +94,7 @@ export default function Book() {
   const [slotsNote, setSlotsNote] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [joiningWaitlist, setJoiningWaitlist] = useState(false);
   const [done, setDone] = useState<Done | null>(null);
   const [accessChoice, setAccessChoice] = useState<string | null>(null);
   const [noTime, setNoTime] = useState(false);
@@ -216,7 +218,51 @@ export default function Book() {
     evening: g.slots.filter(s => Number(fmtTime(s.start).slice(0, 2)) >= 15),
   })) : [];
 
-  // ── Done screen ────────────────────────────────────────────
+  // ── Waitlist Done screen ────────────────────────────────────
+  if (step === 'done' && done && done.type === 'waitlist') {
+    return (
+      <div style={{ background: '#030E1C', minHeight: '100vh', fontFamily: 'Outfit, sans-serif' }}>
+        <ClientNav />
+        <div className="min-h-screen flex items-center justify-center px-6 pt-20">
+          <div className="max-w-md w-full text-center animate-scale-in">
+            <div className="w-20 h-20 rounded-full mx-auto mb-8 flex items-center justify-center"
+              style={{ background: 'rgba(123,97,255,0.1)', border: '2px solid rgba(123,97,255,0.3)', boxShadow: '0 0 40px rgba(123,97,255,0.15)' }}>
+              <span style={{ fontSize: 36 }}>⏳</span>
+            </div>
+            <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 36, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>
+              You're on the list.
+            </h1>
+            <p style={{ color: '#6DA8C4', marginBottom: 24, fontSize: 15 }}>
+              As soon as a slot opens near you, you'll get a priority offer by email — valid 15 minutes.
+            </p>
+            <div style={{ background: 'rgba(7,26,46,0.75)', border: '1px solid rgba(123,97,255,0.2)', borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'left' }}>
+              <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#7B61FF', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>How it works</div>
+              {[
+                { icon: '1', text: 'Another customer cancels their appointment.' },
+                { icon: '2', text: 'Our system finds the best match from the waitlist — that could be you.' },
+                { icon: '3', text: 'You receive a private link valid for 15 minutes to confirm the slot.' },
+                { icon: '4', text: 'One click — the slot is yours. No phone call needed.' },
+              ].map(s => (
+                <div key={s.icon} className="flex items-start gap-3 mb-3">
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(123,97,255,0.15)', border: '1px solid rgba(123,97,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'JetBrains Mono', fontSize: 11, color: '#7B61FF' }}>{s.icon}</div>
+                  <span style={{ fontSize: 13, color: '#6DA8C4', lineHeight: 1.5 }}>{s.text}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="w-full btn-ghost py-3 rounded-xl text-sm font-semibold"
+              onClick={() => { setDone(null); setStep(1); changeJobType('repair'); setJobType(null); }}
+            >
+              Back to home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Regular Done screen ─────────────────────────────────────
   if (step === 'done' && done) {
     const booked = done.type === 'booked' && done.scheduledAt;
     const duration = ai?.duration_min ?? 60;
@@ -438,7 +484,37 @@ export default function Book() {
                 <button onClick={() => void loadSlots()} className="btn-ghost mt-3 px-4 py-2 rounded-lg text-sm">Try again</button>
               </div>
             ) : groups.length === 0 ? (
-              <p style={{ padding: 16, borderRadius: 12, background: 'rgba(255,255,255,0.04)', fontSize: 13, color: '#6DA8C4' }}>No free times in the next days. Go back and continue without a time — we'll contact you.</p>
+              <div className="animate-fade-up">
+                <div style={{ padding: '20px 16px', borderRadius: 16, background: 'rgba(123,97,255,0.05)', border: '1px solid rgba(123,97,255,0.15)', marginBottom: 16 }}>
+                  <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#7B61FF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Agenda complet</div>
+                  <p style={{ fontSize: 13, color: '#6DA8C4', marginBottom: 0, lineHeight: 1.5 }}>
+                    No slots available in the next days. Join the <strong style={{ color: '#D9EEF7' }}>Priority Waitlist</strong> — you'll receive an exclusive 15-minute offer by email the moment a cancellation opens up near you.
+                  </p>
+                </div>
+                {!form.email ? (
+                  <p style={{ fontSize: 12, color: '#4A8BAA', marginBottom: 12 }}>← Go back and fill in your email to use the waitlist.</p>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      setJoiningWaitlist(true);
+                      try {
+                        await joinWaitlistFn({ data: { name: form.name, phone: form.phone || undefined, email: form.email, address: form.address, title: ai?.title, duration_min: ai?.duration_min, urgency: ai?.urgency, flexibility: 'Flexible', lat: loc.lat ?? undefined, lng: loc.lng ?? undefined } });
+                        setDone({ type: 'waitlist', ref: 'WL-' + Math.random().toString(36).slice(2, 8).toUpperCase(), accessToken: null, scheduledAt: null, eta: null });
+                        setStep('done');
+                      } catch (e) {
+                        setSubmitError(e instanceof Error ? e.message : 'Could not join waitlist');
+                      } finally {
+                        setJoiningWaitlist(false);
+                      }
+                    }}
+                    disabled={joiningWaitlist}
+                    className="w-full py-4 rounded-xl font-semibold text-sm transition-all"
+                    style={{ background: 'rgba(123,97,255,0.12)', color: '#7B61FF', border: '1px solid rgba(123,97,255,0.3)', cursor: joiningWaitlist ? 'not-allowed' : 'pointer', opacity: joiningWaitlist ? 0.7 : 1 }}
+                  >
+                    {joiningWaitlist ? 'Registering…' : '⏳ Join Priority Waitlist →'}
+                  </button>
+                )}
+              </div>
             ) : groupedEntries.map(g => (
               <div key={g.day} className="mb-6">
                 <div className="flex items-center gap-3 mb-3">

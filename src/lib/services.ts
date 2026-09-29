@@ -3,7 +3,7 @@
 import * as pub from "./public.functions";
 import * as own from "./owner.functions";
 
-export const bookingService = { understand: pub.understandRequest, slots: pub.getAvailableSlots, create: pub.createBooking, byToken: pub.getBookingByToken, confirmAccess: pub.confirmAccess, rescheduleOptions: pub.getRescheduleOptions, reschedule: pub.rescheduleBooking };
+export const bookingService = { understand: pub.understandRequest, slots: pub.getAvailableSlots, create: pub.createBooking, byToken: pub.getBookingByToken, confirmAccess: pub.confirmAccess, rescheduleOptions: pub.getRescheduleOptions, reschedule: pub.rescheduleBooking, joinWaitlist: pub.joinWaitlist };
 export const offerService = { get: pub.getOffer, respond: pub.respondOffer };
 export const fileService = { createUpload: pub.createPhotoUpload };
 export const aiService = { understand: pub.understandRequest, inbox: own.understandInbox };
