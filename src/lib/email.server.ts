@@ -57,6 +57,8 @@ export async function sendEmail(
             subject: subject,
             message: html,
             html_message: html,
+            company_name: "Ekström VVS",
+            app_url: getAppUrl(),
           },
         }),
       });
