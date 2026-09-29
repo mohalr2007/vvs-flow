@@ -124,7 +124,17 @@ export const getJob = createServerFn({ method: "POST" }).middleware([requireSupa
   const { db } = await guard(context);
   const { data: job } = await db.from("jobs").select("*").eq("id", data.id).maybeSingle();
   let photoUrl: string | null = null;
-  if (job?.photo_path) photoUrl = (await db.storage.from("job-photos").createSignedUrl(job.photo_path, 600)).data?.signedUrl ?? null;
+  if (job?.photo_path) {
+    try {
+      const signed = await db.storage.from("job-photos").createSignedUrl(job.photo_path, 3600);
+      photoUrl = signed.data?.signedUrl ?? null;
+      if (!photoUrl) {
+        photoUrl = db.storage.from("job-photos").getPublicUrl(job.photo_path).data?.publicUrl ?? null;
+      }
+    } catch {
+      photoUrl = db.storage.from("job-photos").getPublicUrl(job.photo_path).data?.publicUrl ?? null;
+    }
+  }
   return { job, photoUrl };
 });
 

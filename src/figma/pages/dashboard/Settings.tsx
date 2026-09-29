@@ -20,6 +20,167 @@ const parseHour = (s: string) => Number(s.split(':')[0]) || 0;
 type Place = { address: string; lat: number | null; lng: number | null };
 
 // Address search + geocode for the owner's home / custom day endpoints (Nominatim, server-side).
+function WorkshopMap({ T, homeLat, homeLng, homeAddress, customLat, customLng, customAddress }: {
+  T: ThemeTokens;
+  homeLat?: number | null;
+  homeLng?: number | null;
+  homeAddress?: string;
+  customLat?: number | null;
+  customLng?: number | null;
+  customAddress?: string;
+}) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const leafletRef = useRef<{ map: import('leaflet').Map } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const L = await import('leaflet');
+      await import('leaflet/dist/leaflet.css');
+      if (cancelled || !mapRef.current || leafletRef.current) return;
+
+      const BASE = { lat: 59.6099, lng: 16.5448 };
+      const map = L.map(mapRef.current, {
+        center: [BASE.lat, BASE.lng],
+        zoom: 9,
+        scrollWheelZoom: false,
+      });
+
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 18,
+      }).addTo(map);
+
+      // 40 km coverage radius circle
+      L.circle([BASE.lat, BASE.lng], {
+        radius: 40000,
+        color: '#0891B2',
+        weight: 2,
+        dashArray: '6, 6',
+        fillColor: '#22D3EE',
+        fillOpacity: 0.08,
+      }).addTo(map);
+
+      // Workshop marker (Copper / Cyan)
+      const baseIcon = L.divIcon({
+        className: '',
+        html: `
+          <div style="position:relative;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:#062B3A;border:3px solid #22D3EE;box-shadow:0 0 16px rgba(34,211,238,0.5);color:white;font-size:16px;">
+            🔧
+          </div>
+        `,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+      });
+      const baseMarker = L.marker([BASE.lat, BASE.lng], { icon: baseIcon }).addTo(map);
+      baseMarker.bindPopup(`
+        <div style="font-family:sans-serif;font-size:12px;color:#0F172A;padding:2px;">
+          <strong style="color:#0891B2;">Atelier Central Ekström VVS</strong><br/>
+          Kopparlunden, Västerås<br/>
+          <span style="font-size:11px;color:#64748B;">Point de départ principal · Rayon de couverture 40 km</span>
+        </div>
+      `);
+
+      // Home marker if configured
+      if (homeLat != null && homeLng != null) {
+        const homeIcon = L.divIcon({
+          className: '',
+          html: `
+            <div style="position:relative;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#062B3A;border:2px solid #10B981;box-shadow:0 0 10px rgba(16,185,129,0.4);color:white;font-size:13px;">
+              🏠
+            </div>
+          `,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
+        const hMarker = L.marker([homeLat, homeLng], { icon: homeIcon }).addTo(map);
+        hMarker.bindPopup(`
+          <div style="font-family:sans-serif;font-size:12px;color:#0F172A;padding:2px;">
+            <strong style="color:#10B981;">Domicile / Home</strong><br/>
+            ${homeAddress || 'Position enregistrée'}
+          </div>
+        `);
+      }
+
+      // Custom depot marker if configured
+      if (customLat != null && customLng != null) {
+        const customIcon = L.divIcon({
+          className: '',
+          html: `
+            <div style="position:relative;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#062B3A;border:2px solid #F59E0B;box-shadow:0 0 10px rgba(245,158,11,0.4);color:white;font-size:13px;">
+              📍
+            </div>
+          `,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
+        const cMarker = L.marker([customLat, customLng], { icon: customIcon }).addTo(map);
+        cMarker.bindPopup(`
+          <div style="font-family:sans-serif;font-size:12px;color:#0F172A;padding:2px;">
+            <strong style="color:#F59E0B;">Point personnalisé / Dépôt</strong><br/>
+            ${customAddress || 'Position enregistrée'}
+          </div>
+        `);
+      }
+
+      leafletRef.current = { map };
+    })();
+
+    return () => {
+      cancelled = true;
+      leafletRef.current?.map.remove();
+      leafletRef.current = null;
+    };
+  }, [homeLat, homeLng, homeAddress, customLat, customLng, customAddress]);
+
+  return (
+    <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${T.cardBorder}` }}>
+      <div className="flex items-center justify-between mb-2">
+        <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          Localisation de l&apos;atelier &amp; Rayon d&apos;intervention
+        </label>
+        <span style={{ fontSize: 11, color: '#0891B2', fontFamily: 'JetBrains Mono' }}>
+          Västerås Base (59.61° N, 16.54° E)
+        </span>
+      </div>
+      <div
+        ref={mapRef}
+        style={{
+          height: 220,
+          borderRadius: 12,
+          overflow: 'hidden',
+          border: `1px solid ${T.cardBorder}`,
+          position: 'relative',
+          zIndex: 1,
+        }}
+      />
+      <div className="flex flex-wrap items-center gap-4 mt-2.5 text-[11px]" style={{ color: T.textMid }}>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#22D3EE' }} />
+          Atelier (Kopparlunden)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full inline-block border border-dashed border-[#0891B2] bg-[#22D3EE]/20" />
+          Rayon 40 km (zone couverte)
+        </span>
+        {homeLat != null && (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#10B981' }} />
+            Domicile
+          </span>
+        )}
+        {customLat != null && (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#F59E0B' }} />
+            Point personnalisé
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Address search + geocode for the owner's home / custom day endpoints (Nominatim, server-side).
 function PlaceSearchField({ label, hint, value, T, onPick }: {
   label: string; hint: string; T: ThemeTokens; value: Place;
   onPick: (p: Place) => void;
@@ -213,6 +374,15 @@ function SettingsForm({ s }: { s: Settings }) {
             <label style={{ display: 'block', fontSize: 11, color: T.textMid, fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Hourly rate (SEK)</label>
             <input type="number" className="vvs-input" value={f.hourly_rate} onChange={num('hourly_rate')} style={{ background: T.input }} />
           </div>
+          <WorkshopMap
+            T={T}
+            homeLat={f.home_lat}
+            homeLng={f.home_lng}
+            homeAddress={f.home_address}
+            customLat={f.custom_lat}
+            customLng={f.custom_lng}
+            customAddress={f.custom_address}
+          />
         </div>
       </div>
 

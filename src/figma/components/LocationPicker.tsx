@@ -7,6 +7,7 @@ export interface PickedLocation {
   lng: number | null;
   inside: boolean | null;
   driveMinutes: number | null;
+  distanceKm?: number | null;
 }
 
 const BASE = { lat: 59.6099, lng: 16.5448 };
@@ -52,7 +53,7 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
           const info = await locatePin({ data: { lat, lng } });
           setQuery(info.address);
           dirtyRef.current = false;
-          onChange({ address: info.address, lat, lng, inside: info.inside, driveMinutes: info.driveMinutes });
+          onChange({ address: info.address, lat, lng, inside: info.inside, driveMinutes: info.driveMinutes, distanceKm: info.distanceKm });
         } catch {
           // ignore network failure
         }
@@ -101,7 +102,7 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
     setQuery(address);
     if (!auto) setOpen(false);
     dirtyRef.current = false;
-    onChange({ address, lat, lng, inside: info.inside, driveMinutes: info.driveMinutes });
+    onChange({ address, lat, lng, inside: info.inside, driveMinutes: info.driveMinutes, distanceKm: info.distanceKm });
     const lm = leafletRef.current;
     if (lm) {
       lm.marker.setLatLng([lat, lng]);
@@ -112,7 +113,7 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
   const onType = (text: string) => {
     setQuery(text);
     dirtyRef.current = true;
-    onChange({ ...value, address: text, lat: null, lng: null, inside: null, driveMinutes: null });
+    onChange({ ...value, address: text, lat: null, lng: null, inside: null, driveMinutes: null, distanceKm: null });
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (text.trim().length < 3) { setResults([]); setOpen(false); return; }
     debounceRef.current = setTimeout(async () => {
@@ -176,7 +177,7 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
         <span className="flex-1" />
         {value.inside === true && (
           <span style={{ fontSize: 12, fontWeight: 600, color: '#34D399' }}>
-            ✓ Covered{value.driveMinutes != null ? ` · ~${value.driveMinutes} min drive for Mats` : ''}
+            ✓ Covered{value.distanceKm != null ? ` · ~${value.distanceKm} km` : ''}{value.driveMinutes != null ? ` (~${value.driveMinutes} min drive)` : ''}
           </span>
         )}
         {value.inside === false && <span style={{ fontSize: 12, fontWeight: 600, color: '#F59E0B' }}>✕ Outside area</span>}

@@ -267,6 +267,90 @@ export function bookingConfirmationEmail(p: {
   };
 }
 
+// ─── EMERGENCY REQUEST CONFIRMATION ──────────────────────────────────────────
+export function emergencyConfirmationEmail(p: {
+  name: string;
+  title: string;
+  eta: string;
+  ref: string;
+  accessUrl: string | null;
+}) {
+  const content = `
+    <p style="margin: 0 0 14px 0; font-size: 15px;">Hello <strong>${esc(p.name)}</strong>,</p>
+    <div style="background-color: #fef2f2; border: 2px solid #f87171; border-radius: 8px; padding: 16px; margin: 0 0 20px 0;">
+      <p style="margin: 0 0 4px 0; font-size: 12px; color: #991b1b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">🚨 Emergency Request Received</p>
+      <p style="margin: 0 0 8px 0; font-size: 14px; color: #7f1d1d;">
+        Mats has received your urgent request and is being dispatched as fast as possible.
+      </p>
+      <div style="background-color: #ffffff; border-radius: 6px; padding: 12px; border: 1px solid #fca5a5;">
+        <p style="margin: 0 0 4px 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-family: monospace;">Estimated Arrival Window</p>
+        <p style="margin: 0; font-size: 24px; font-weight: 700; color: #dc2626;">${esc(p.eta)}</p>
+      </div>
+    </div>
+
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin: 0 0 20px 0;">
+      <tr>
+        <td style="padding: 10px 16px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; width: 35%;">Issue:</td>
+        <td style="padding: 10px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; color: #0f172a;">${esc(p.title)}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px 16px; font-size: 12px; color: #64748b;">Emergency Reference:</td>
+        <td style="padding: 10px 16px; font-size: 13px; font-family: monospace; font-weight: 700; color: #dc2626;">${esc(p.ref)}</td>
+      </tr>
+    </table>
+
+    <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 16px; margin: 0 0 16px 0; font-size: 12px; color: #92400e;">
+      <strong>⚠️ Safety reminder while waiting:</strong>
+      <ul style="margin: 6px 0 0 0; padding-left: 20px;">
+        <li>Turn off the main water shutoff valve if accessible.</li>
+        <li>Stay away from wet electrical outlets.</li>
+        <li>Move valuables away from water flow.</li>
+      </ul>
+    </div>
+
+    ${p.accessUrl ? button(p.accessUrl, "Track Emergency Status") : ""}
+  `;
+
+  return {
+    subject: `🚨 Emergency Received (${p.ref}) — Estimated arrival ${p.eta} · Ekström VVS`,
+    html: layout("Urgent Dispatch Confirmation", content, `Ref: ${p.ref}`),
+  };
+}
+
+// ─── PROJECT / NEW INSTALLATION REQUEST ──────────────────────────────────────
+export function projectRequestEmail(p: {
+  name: string;
+  title: string;
+  ref: string;
+}) {
+  const content = `
+    <p style="margin: 0 0 14px 0; font-size: 15px;">Hello <strong>${esc(p.name)}</strong>,</p>
+    <p style="margin: 0 0 18px 0; color: #475569;">
+      Thank you for contacting <strong>Ekström VVS</strong> regarding your upcoming installation project. We have successfully registered your request.
+    </p>
+
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin: 0 0 20px 0;">
+      <tr>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; width: 35%;">Project:</td>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; color: #0f172a;">${esc(p.title)}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 16px; font-size: 12px; color: #64748b;">Request Reference:</td>
+        <td style="padding: 12px 16px; font-size: 13px; font-family: monospace; font-weight: 600; color: #0891b2;">${esc(p.ref)}</td>
+      </tr>
+    </table>
+
+    <p style="margin: 0 0 10px 0; color: #475569; font-size: 13px;">
+      Mats will personally review your specifications and contact you to schedule a free on-site visit and provide a detailed estimate.
+    </p>
+  `;
+
+  return {
+    subject: `Project Request Received — ${p.ref}: ${p.title} · Ekström VVS`,
+    html: layout("Project Request Received", content, `Reference: ${p.ref}`),
+  };
+}
+
 // ─── WAITLIST SLOT OFFER (cancellation recovery) ─────────────────────────────
 export function offerEmail(p: {
   name: string;

@@ -212,8 +212,8 @@ export default function Book() {
   const groupedEntries = groups ? groups.map(g => ({
     day: g.day,
     morning: g.slots.filter(s => Number(fmtTime(s.start).slice(0, 2)) < 12),
-    afternoon: g.slots.filter(s => { const h = Number(fmtTime(s.start).slice(0, 2)); return h >= 12 && h < 17; }),
-    evening: g.slots.filter(s => Number(fmtTime(s.start).slice(0, 2)) >= 17),
+    afternoon: g.slots.filter(s => { const h = Number(fmtTime(s.start).slice(0, 2)); return h >= 12 && h < 15; }),
+    evening: g.slots.filter(s => Number(fmtTime(s.start).slice(0, 2)) >= 15),
   })) : [];
 
   // ── Done screen ────────────────────────────────────────────
@@ -445,7 +445,7 @@ export default function Book() {
                   <span style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: W, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{fmtDay(g.day)}</span>
                   <div className="flex-1 h-px" style={{ background: 'rgba(8,145,178,0.1)' }} />
                 </div>
-                {[['Morning', g.morning], ['Afternoon', g.afternoon], ['Evening', g.evening]].map(([label, list]) =>
+                {[['Morning', g.morning], ['Afternoon', g.afternoon], ['Late afternoon & evening', g.evening]].map(([label, list]) =>
                   (list as { start: string; travel: string; recommended?: boolean }[]).length === 0 ? null : (
                     <div key={label as string} className="mb-4">
                       <p style={{ fontSize: 11, color: '#6DA8C4', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label as string}</p>

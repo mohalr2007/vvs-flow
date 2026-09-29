@@ -195,6 +195,41 @@ function Editor({ job, photoUrl, jobId, qc, T }: { job: Job; photoUrl: string | 
               </div>
             ))}
           </div>
+
+          {/* Attached Photo */}
+          {(photoUrl || job.photo_path) && (
+            <div className="p-5 rounded-2xl" style={{ background: T.card, border: `1px solid ${T.cardBorder}` }}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: 16, color: T.text, fontWeight: 400 }}>Attached photo</h3>
+                <span className="tag" style={{ background: 'rgba(8,145,178,0.12)', color: '#22D3EE' }}>Customer upload</span>
+              </div>
+              {photoUrl ? (
+                <div className="flex flex-col gap-2">
+                  <div className="relative rounded-xl overflow-hidden border" style={{ borderColor: T.cardBorder }}>
+                    <img
+                      src={photoUrl}
+                      alt="Customer issue photo"
+                      className="w-full h-auto max-h-80 object-contain rounded-xl bg-black/30"
+                    />
+                  </div>
+                  <a
+                    href={photoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium self-end transition-opacity hover:opacity-80"
+                    style={{ color: '#22D3EE', textDecoration: 'none' }}
+                  >
+                    View full size ↗
+                  </a>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl flex items-center gap-2" style={{ background: T.input, color: T.textMid }}>
+                  <span style={{ fontSize: 18 }}>📷</span>
+                  <span style={{ fontSize: 12 }}>Photo uploaded ({job.photo_path}) — loading secure link…</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: Decision panel */}

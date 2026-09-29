@@ -144,6 +144,9 @@ export default function Jobs() {
                       {aiWarning && (
                         <span className="tag" style={{ background: 'rgba(229,57,53,0.12)', color: '#E53935' }}>AI flag</span>
                       )}
+                      {job.photo_path && (
+                        <span className="tag" style={{ background: 'rgba(8,145,178,0.12)', color: '#22D3EE' }} title="Photo attached">📷 Photo</span>
+                      )}
                     </div>
                     <div style={{ fontSize: 12, color: T.textMid, marginTop: 1 }}>
                       {job.ref} · {job.title} · {job.zone}

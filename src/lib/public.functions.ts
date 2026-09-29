@@ -109,12 +109,23 @@ export const createBooking = createServerFn({ method: "POST" })
     if (data.kind === "project") {
       const { data: p, error } = await db.from("projects").insert({ title: data.title ?? "Project request", customer_name: data.name, phone: data.phone, email: data.email, address: data.address, description: data.description, status: "site_visit_requested", ...coords }).select("ref").single();
       if (error) throw new Error("Your request could not be saved. Please try again.");
+      if (data.email) {
+        const { sendEmail, projectRequestEmail } = await import("./email.server");
+        const mail = projectRequestEmail({ name: data.name, title: data.title ?? "Project request", ref: p.ref });
+        await sendEmail(data.email, mail.subject, mail.html).catch(() => null);
+      }
       return { type: "project" as const, ref: p.ref, accessToken: null, scheduledAt: null, eta: null };
     }
     if (data.kind === "emergency") {
       const eta = new Date(Math.ceil((now.getTime() + 35 * 60000) / 300000) * 300000);
       const { data: j, error } = await db.from("jobs").insert({ customer_name: data.name, phone: data.phone, email: data.email, address: data.address, zone, title: data.title ?? "Emergency leak", description: data.description, status: "new", urgency: "Emergency", is_emergency: true, confidence: data.confidence ?? 0, duration_min: data.duration_min ?? 90, value: data.price_high ?? 0, access_status: data.accessChoice ?? null, scheduled_at: eta.toISOString(), photo_path: data.photoPath, ...coords }).select("ref,access_token").single();
       if (error) throw new Error("Your emergency request could not be saved. Please call us directly.");
+      if (data.email) {
+        const { sendEmail, emergencyConfirmationEmail, bookingUrl } = await import("./email.server");
+        const etaStr = `${new Date(eta).toLocaleTimeString("en-GB", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit" })} – ${new Date(eta.getTime() + 25 * 60000).toLocaleTimeString("en-GB", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit" })}`;
+        const mail = emergencyConfirmationEmail({ name: data.name, title: data.title ?? "Emergency leak", eta: etaStr, ref: j.ref, accessUrl: bookingUrl(j.access_token) });
+        await sendEmail(data.email, mail.subject, mail.html).catch(() => null);
+      }
       return { type: "emergency" as const, ref: j.ref, accessToken: j.access_token, scheduledAt: eta.toISOString(), eta: { from: eta.toISOString(), to: new Date(eta.getTime() + 25 * 60000).toISOString() } };
     }
     const confidence = data.confidence ?? 0;
