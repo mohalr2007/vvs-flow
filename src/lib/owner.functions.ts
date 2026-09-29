@@ -359,11 +359,27 @@ export const testEmail = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ to: z.string().email() }).parse(d))
   .handler(async ({ context, data }) => {
     await guard(context);
-    const { sendEmail, getFromEmail } = await import("./email.server");
+    const { sendEmail, getFromEmail, layout } = await import("./email.server");
+    const testContent = `
+      <p style="margin: 0 0 14px 0; font-size: 15px;">Hej Mats,</p>
+      <p style="margin: 0 0 16px 0; color: #475569;">
+        Detta är ett bekräftelsetest från ditt administrativa gränssnitt <strong>Ekström VVS Flow</strong>.
+      </p>
+      <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0;">
+        <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 600; color: #15803d;">✓ E-posttjänsten är fullt ansluten och driftklar !</p>
+        <p style="margin: 0; font-size: 12px; color: #166534;">Dina bokningsbekräftelser och 15-minuters erbjudanden skickas nu automatiskt.</p>
+      </div>
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin: 0 0 10px 0;">
+        <tr>
+          <td style="padding: 10px 14px; font-size: 12px; color: #64748b; width: 35%;">Mottagare :</td>
+          <td style="padding: 10px 14px; font-size: 13px; font-weight: 600; color: #0f172a;">${data.to}</td>
+        </tr>
+      </table>
+    `;
     const result = await sendEmail(
       data.to,
-      "Test email — Ekström VVS",
-      `<h1>Resend Configuration Test</h1><p>Your email service is working properly from <strong>${getFromEmail()}</strong>.</p>`,
+      "Test e-post — Ekström VVS Flow (Driftklar)",
+      layout("E-posttjänst ansluten ✓", testContent, "Ekström VVS • Systemtest"),
     );
     if (!result.sent) {
       throw new Error(result.reason || "Failed to send test email");

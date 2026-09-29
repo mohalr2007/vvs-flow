@@ -133,47 +133,153 @@ export async function sendEmail(
   return { sent: true };
 }
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-function layout(title: string, body: string) {
-  return `<!DOCTYPE html><html lang="sv"><body style="margin:0;background:#f7f6f3;font-family:Arial,sans-serif;color:#23272f">
-  <div style="max-width:560px;margin:0 auto;padding:24px">
-    <p style="font-weight:bold;color:#2f5d8a;margin:0 0 16px">Ekström VVS</p>
-    <div style="background:#ffffff;border:1px solid #e6e3dc;border-radius:8px;padding:24px">
-      <h1 style="font-size:20px;margin:0 0 12px">${title}</h1>
-      ${body}
-    </div>
-    <p style="font-size:12px;color:#8a8f98;margin-top:16px">Ekström VVS · Västerås</p>
-  </div></body></html>`;
+export function layout(title: string, body: string, subtitle?: string) {
+  return `<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${esc(title)}</title>
+</head>
+<body style="margin: 0; padding: 24px 12px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" align="center" style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 18px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+    <!-- En-tête officiel Marine & Cyan -->
+    <tr>
+      <td style="background-color: #0b1a28; padding: 24px 28px; border-bottom: 3px solid #0891b2;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+          <tr>
+            <td>
+              <h1 style="margin: 0; font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: 0.03em;">
+                EKSTRÖM <span style="color: #22d3ee;">VVS</span>
+              </h1>
+              <p style="margin: 3px 0 0 0; font-size: 11px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.08em;">
+                Auktoriserad VVS-montör • Västerås
+              </p>
+            </td>
+            <td align="right">
+              <span style="display: inline-block; padding: 4px 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; background-color: rgba(8,145,178,0.2); color: #22d3ee; border: 1px solid rgba(8,145,178,0.4); border-radius: 16px;">
+                Confirmation officielle
+              </span>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Corps du message -->
+    <tr>
+      <td style="padding: 28px 28px 20px 28px;">
+        <h2 style="margin: 0 0 6px 0; font-size: 18px; color: #0f172a; font-weight: 600;">
+          ${esc(title)}
+        </h2>
+        ${subtitle ? `<p style="margin: 0 0 16px 0; font-size: 13px; color: #64748b;">${esc(subtitle)}</p>` : ''}
+        <div style="font-size: 14px; line-height: 1.6; color: #334155;">
+          ${body}
+        </div>
+      </td>
+    </tr>
+
+    <!-- Contact & Assistance -->
+    <tr>
+      <td style="padding: 0 28px 24px 28px;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px 16px;">
+          <tr>
+            <td style="font-size: 12px; color: #64748b; line-height: 1.5;">
+              <strong style="color: #0f172a;">Une question ou une urgence ?</strong><br>
+              Intervention rapide 24h/24 : <strong style="color: #0891b2;">021-123 456</strong> · Réponse directe par email.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Pied de page -->
+    <tr>
+      <td style="background-color: #f8fafc; padding: 18px 28px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; line-height: 1.5;">
+        <p style="margin: 0 0 4px 0; font-weight: 600; color: #475569;">
+          Ekström VVS AB · Kopparlunden, 721 30 Västerås, Suède
+        </p>
+        <p style="margin: 0;">
+          Service certifié de plomberie et chauffage. Ce message a été généré automatiquement suite à votre réservation.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
-function button(href: string, label: string) {
-  return `<p style="margin:20px 0 0"><a href="${href}" style="display:inline-block;background:#2f5d8a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:bold">${label}</a></p>`;
+export function button(href: string, label: string) {
+  return `<table border="0" cellspacing="0" cellpadding="0" style="margin: 22px 0 10px 0;">
+    <tr>
+      <td align="center" style="border-radius: 8px; background-color: #0891b2;">
+        <a href="${href}" target="_blank" style="font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; letter-spacing: 0.02em;">
+          ${label} →
+        </a>
+      </td>
+    </tr>
+  </table>`;
 }
 
 export function bookingConfirmationEmail(p: { name: string; title: string; when: string | null; ref: string; accessUrl: string | null }) {
-  const rows = [
-    `<p style="margin:0 0 8px">Hej ${esc(p.name)},</p>`,
-    `<p style="margin:0 0 8px">Din bokning hos Ekström VVS är mottagen.</p>`,
-    `<p style="margin:0 0 4px"><strong>${esc(p.title)}</strong></p>`,
-    p.when ? `<p style="margin:0 0 4px">Tid: ${esc(p.when)}</p>` : `<p style="margin:0 0 4px">Vi kontaktar dig för att komma överens om en tid.</p>`,
-    `<p style="margin:0 0 4px">Referens: ${esc(p.ref)}</p>`,
-  ].join("");
+  const content = `
+    <p style="margin: 0 0 14px 0; font-size: 15px;">Hej <strong>${esc(p.name)}</strong>,</p>
+    <p style="margin: 0 0 18px 0; color: #475569;">
+      Tack för din bokning hos <strong>Ekström VVS</strong>. Din förfrågan är bekräftad och registrerad i vårt system.
+    </p>
+
+    <!-- Détails du rendez-vous -->
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin: 0 0 20px 0; overflow: hidden;">
+      <tr>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; width: 35%;">Tjänst / Intervention :</td>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; color: #0f172a;">${esc(p.title)}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">Planerad tid :</td>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; color: #0891b2;">${p.when ? esc(p.when) : 'Vi kontaktar dig för exakt tid'}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 16px; font-size: 12px; color: #64748b;">Referensnummer :</td>
+        <td style="padding: 12px 16px; font-size: 13px; font-family: monospace; font-weight: 600; color: #0f172a;">${esc(p.ref)}</td>
+      </tr>
+    </table>
+
+    <p style="margin: 0 0 6px 0; color: #475569; font-size: 13px;">
+      Du kan följa status på din bokning eller göra ändringar när som helst via din personliga länk :
+    </p>
+    ${p.accessUrl ? button(p.accessUrl, "Se och hantera din bokning") : ""}
+  `;
+
   return {
-    subject: `Bokningsbekräftelse ${p.ref} — Ekström VVS`,
-    html: layout("Tack för din bokning", rows + (p.accessUrl ? button(p.accessUrl, "Visa bokning") : "")),
+    subject: `Bekräftelse ${p.ref} : ${p.title} — Ekström VVS`,
+    html: layout("Bokningsbekräftelse", content, `Referens : ${p.ref}`),
   };
 }
 
 export function offerEmail(p: { name: string; title: string; when: string; offerUrl: string }) {
-  const body = [
-    `<p style="margin:0 0 8px">Hej ${esc(p.name)},</p>`,
-    `<p style="margin:0 0 8px">En tid har blivit ledig för <strong>${esc(p.title)}</strong>:</p>`,
-    `<p style="margin:0 0 8px;font-size:18px"><strong>${esc(p.when)}</strong></p>`,
-    `<p style="margin:0">Erbjudandet gäller i 15 minuter. Svara snabbt om du vill ha tiden.</p>`,
-  ].join("");
+  const content = `
+    <p style="margin: 0 0 14px 0; font-size: 15px;">Hej <strong>${esc(p.name)}</strong>,</p>
+    <p style="margin: 0 0 18px 0; color: #475569;">
+      Goda nyheter ! En tidigare tid har blivit ledig i vårt schema för din förfrågan :
+    </p>
+
+    <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 0 0 20px 0;">
+      <p style="margin: 0 0 4px 0; font-size: 12px; color: #166534; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Nytt ledigt datum :</p>
+      <p style="margin: 0 0 6px 0; font-size: 18px; font-weight: 700; color: #15803d;">${esc(p.when)}</p>
+      <p style="margin: 0; font-size: 12px; color: #166534;">För : ${esc(p.title)}</p>
+    </div>
+
+    <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 16px; margin: 0 0 18px 0; font-size: 13px; color: #92400e;">
+      ⏱ <strong>Begränsad giltighetstid :</strong> Detta erbjudande är reserverat för dig i <strong>15 minuter</strong>. Om du inte bekräftar går turen vidare till nästa person i kön.
+    </div>
+
+    ${button(p.offerUrl, "Acceptera tiden nu")}
+  `;
+
   return {
-    subject: `Ledig tid: ${p.when} — Ekström VVS`,
-    html: layout("En tid har blivit ledig", body + button(p.offerUrl, "Svara på erbjudandet")),
+    subject: `Ledig tid erbjudande : ${p.when} — Ekström VVS`,
+    html: layout("Ny ledig tid för din VVS-service", content),
   };
 }
