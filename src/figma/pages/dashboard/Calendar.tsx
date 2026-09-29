@@ -1,13 +1,25 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, ChevronRight, Clock3, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock3, MapPin, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import DashboardLayout from "@/figma/components/DashboardLayout";
 import { QueryState } from "@/components/vvs/query-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { jobService } from "@/lib/services";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { jobService, ownerService } from "@/lib/services";
 import { fmtTime, sameStockholmDay, stockholmParts } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -30,11 +42,36 @@ const longDate = (date: Date) =>
 export default function CalendarPage() {
   const [view, setView] = useState<"Day" | "Week">("Week");
   const [offset, setOffset] = useState(0);
+  const [clearing, setClearing] = useState(false);
+  const [isClearOpen, setIsClearOpen] = useState(false);
+
   const calendar = useServerFn(jobService.calendar);
+  const clearAppointments = useServerFn(ownerService.clearAppointments);
+  const qc = useQueryClient();
+
   const query = useQuery({
     queryKey: ["calendar", offset],
     queryFn: () => calendar({ data: { offsetDays: offset } }),
   });
+
+  const handleClearCalendar = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    setClearing(true);
+    try {
+      await clearAppointments();
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["calendar"] }),
+        qc.invalidateQueries({ queryKey: ["jobs"] }),
+        qc.invalidateQueries({ queryKey: ["overview"] }),
+      ]);
+      toast.success("Calendar cleared — all bookings and appointments deleted");
+      setIsClearOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not clear calendar");
+    } finally {
+      setClearing(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -44,7 +81,42 @@ export default function CalendarPage() {
             <h1 className="font-display text-3xl font-light sm:text-4xl">Calendar</h1>
             <p className="mt-2 text-sm text-muted-foreground">Work, travel, and protected capacity in one clear view.</p>
           </div>
-          <div className="grid grid-cols-[auto_auto_auto_1fr] items-center gap-2 sm:flex sm:justify-end">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {/* Clear calendar button with AlertDialog confirmation */}
+            <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                  disabled={clearing}
+                >
+                  <Trash2 className="size-3.5" />
+                  <span>{clearing ? "Clearing…" : "Clear calendar"}</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Empty the calendar?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all appointments, scheduled bookings, and site work tasks.
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={clearing}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleClearCalendar}
+                    disabled={clearing}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {clearing ? "Clearing…" : "Yes, empty calendar"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <div className="flex items-center gap-1">
               <Button
                 size="icon"
                 variant="outline"
@@ -64,18 +136,19 @@ export default function CalendarPage() {
               >
                 <ChevronRight />
               </Button>
-              <div className="flex rounded-lg border bg-card p-1">
-                {(["Day", "Week"] as const).map((option) => (
-                  <Button
-                    key={option}
-                    size="sm"
-                    variant={view === option ? "default" : "ghost"}
-                    onClick={() => setView(option)}
-                  >
-                    {option}
-                  </Button>
-                ))}
-              </div>
+            </div>
+            <div className="flex rounded-lg border bg-card p-1">
+              {(["Day", "Week"] as const).map((option) => (
+                <Button
+                  key={option}
+                  size="sm"
+                  variant={view === option ? "default" : "ghost"}
+                  onClick={() => setView(option)}
+                >
+                  {option}
+                </Button>
+              ))}
+            </div>
           </div>
         </header>
 
@@ -188,8 +261,19 @@ export default function CalendarPage() {
                     );
                   })}
                 </div>
-                <footer className="border-t bg-card px-4 py-4 text-xs font-medium text-muted-foreground sm:px-6">
-                  {totalEvents} {totalEvents === 1 ? "event" : "events"} in this {view === "Week" ? "week" : "day"}
+                <footer className="flex items-center justify-between border-t bg-card px-4 py-4 text-xs font-medium text-muted-foreground sm:px-6">
+                  <span>
+                    {totalEvents} {totalEvents === 1 ? "event" : "events"} in this {view === "Week" ? "week" : "day"}
+                  </span>
+                  {totalEvents > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsClearOpen(true)}
+                      className="cursor-pointer text-xs text-destructive hover:underline"
+                    >
+                      Empty calendar ({totalEvents})
+                    </button>
+                  )}
                 </footer>
               </Card>
             );
