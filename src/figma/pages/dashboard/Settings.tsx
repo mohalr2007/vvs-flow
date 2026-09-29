@@ -129,12 +129,32 @@ function SettingsForm({ s }: { s: Settings }) {
   const reset = useServerFn(ownerService.reset);
   const clearAll = useServerFn(ownerService.clearAppointments);
   const advance = useServerFn(ownerService.advance);
+  const testEmailFn = useServerFn(ownerService.testEmail);
   const qc = useQueryClient();
   const [f, setF] = useState(s);
   const [busy, setBusy] = useState(false);
   const [demoBusy, setDemoBusy] = useState('');
   const [saved, setSaved] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
   useEffect(() => setF(s), [s]);
+
+  const handleTestEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testEmailAddress) {
+      toast.error('Please enter an email address');
+      return;
+    }
+    setSendingTest(true);
+    try {
+      const res = await testEmailFn({ data: { to: testEmailAddress } });
+      toast.success(`Test email sent from ${res.from}! Check your inbox.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send test email');
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   const num = (k: keyof Settings) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: Number(e.target.value) } as Settings);
   const toggleRestDay = (day: number) => {
@@ -295,6 +315,46 @@ function SettingsForm({ s }: { s: Settings }) {
             <p style={{ fontSize: 12, color: '#E53935' }}>{routeWarning}</p>
           )}
         </div>
+      </div>
+
+      {/* Email & Resend configuration */}
+      <div className="p-4 rounded-xl" style={{ background: T.card, border: `1px solid ${T.cardBorder}` }}>
+        <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#0891B2', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+          ✉ Email service (Resend)
+        </div>
+        <p style={{ fontSize: 12, color: T.textMid, lineHeight: 1.5, marginBottom: 10 }}>
+          Booking confirmations and 15-minute waitlist offers are dispatched via Resend.
+          When deploying to <strong>Vercel</strong>, configure these environment variables in your Vercel project:
+        </p>
+        <div className="p-2.5 rounded-lg text-[11px] font-mono mb-3 space-y-0.5" style={{ background: T.input, color: T.textDim, border: `1px solid ${T.cardBorder}` }}>
+          <div>RESEND_API_KEY=re_...</div>
+          <div>RESEND_FROM_EMAIL=Ekström VVS &lt;bokning@yourdomain.com&gt;</div>
+          <div>APP_URL=https://yourdomain.com</div>
+        </div>
+        <form onSubmit={handleTestEmail} className="flex flex-col sm:flex-row gap-2 items-center">
+          <input
+            type="email"
+            placeholder="test-recipient@example.com"
+            value={testEmailAddress}
+            onChange={(e) => setTestEmailAddress(e.target.value)}
+            className="flex-1 w-full px-3 py-2 rounded-lg text-xs"
+            style={{ background: T.input, color: T.text, border: `1px solid ${T.cardBorder}` }}
+          />
+          <button
+            type="submit"
+            disabled={sendingTest || !testEmailAddress}
+            className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all"
+            style={{
+              background: 'rgba(8,145,178,0.15)',
+              color: '#22D3EE',
+              border: '1px solid rgba(8,145,178,0.3)',
+              cursor: sendingTest ? 'not-allowed' : 'pointer',
+              opacity: sendingTest ? 0.6 : 1,
+            }}
+          >
+            {sendingTest ? 'Sending…' : 'Send test email →'}
+          </button>
+        </form>
       </div>
 
       {/* Demo controls */}

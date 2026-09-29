@@ -1,32 +1,94 @@
-// Server-only email sending via the Resend connector gateway.
+// Server-only email sending via Resend.
+// Supports both direct Resend API (standard on Vercel/production) and Lovable connector gateway.
 // Never import this file from client code.
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
-const FROM = "Ekström VVS <onboarding@resend.dev>";
-// Public base URL used in email links (booking/offer pages).
-const APP_URL = "https://id-preview--b9506bcd-256a-4188-834f-9981db88d72f.lovable.app";
-export const bookingUrl = (token: string) => `${APP_URL}/access/${token}`;
-export const offerUrl = (token: string) => `${APP_URL}/offer/${token}`;
-
-export async function sendEmail(to: string, subject: string, html: string): Promise<{ sent: boolean; reason?: string }> {
-  const lovableKey = process.env["LOVABLE_API_KEY"];
-  const resendKey = process.env["RESEND_API_KEY"];
-  if (!lovableKey || !resendKey) return { sent: false, reason: "Email is not configured." };
-  const res = await fetch(`${GATEWAY_URL}/emails`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${lovableKey}`,
-      "X-Connection-Api-Key": resendKey,
-    },
-    body: JSON.stringify({ from: FROM, to: [to], subject, html }),
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    console.error(`Email send failed [${res.status}]: ${body}`);
-    return { sent: false, reason: `Provider error ${res.status}` };
+export function getAppUrl(): string {
+  const envUrl = process.env["APP_URL"] || process.env["PUBLIC_APP_URL"];
+  if (envUrl) {
+    return envUrl.replace(/\/$/, "");
   }
-  return { sent: true };
+  const vercelProd = process.env["VERCEL_PROJECT_PRODUCTION_URL"];
+  if (vercelProd) {
+    return `https://${vercelProd.replace(/\/$/, "")}`;
+  }
+  const vercelUrl = process.env["VERCEL_URL"];
+  if (vercelUrl) {
+    return `https://${vercelUrl.replace(/\/$/, "")}`;
+  }
+  return "https://id-preview--b9506bcd-256a-4188-834f-9981db88d72f.lovable.app";
+}
+
+export function getFromEmail(): string {
+  return (
+    process.env["RESEND_FROM_EMAIL"] ||
+    process.env["FROM_EMAIL"] ||
+    "Ekström VVS <onboarding@resend.dev>"
+  );
+}
+
+// Public base URL used in email links (booking/offer pages).
+export const bookingUrl = (token: string) => `${getAppUrl()}/access/${token}`;
+export const offerUrl = (token: string) => `${getAppUrl()}/offer/${token}`;
+
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+): Promise<{ sent: boolean; reason?: string }> {
+  const resendKey = process.env["RESEND_API_KEY"];
+  const lovableKey = process.env["LOVABLE_API_KEY"];
+
+  if (!resendKey) {
+    console.warn("sendEmail: RESEND_API_KEY is not set. Email will not be sent.");
+    return { sent: false, reason: "RESEND_API_KEY is not configured." };
+  }
+
+  const from = getFromEmail();
+
+  try {
+    // 1. If running inside Lovable sandbox with connector gateway configured:
+    if (lovableKey) {
+      try {
+        const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${lovableKey}`,
+            "X-Connection-Api-Key": resendKey,
+          },
+          body: JSON.stringify({ from, to: [to], subject, html }),
+        });
+        if (res.ok) {
+          return { sent: true };
+        }
+        const errText = await res.text();
+        console.warn(`Lovable gateway send returned ${res.status}: ${errText}. Falling back to direct Resend API.`);
+      } catch (gwErr) {
+        console.warn("Lovable gateway failed, attempting direct Resend API:", gwErr);
+      }
+    }
+
+    // 2. Direct Resend API (standard for Vercel, Node, and custom domain setups)
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${resendKey}`,
+      },
+      body: JSON.stringify({ from, to: [to], subject, html }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      console.error(`Resend API error [${res.status}]: ${body}`);
+      return { sent: false, reason: `Resend error ${res.status}: ${body}` };
+    }
+
+    return { sent: true };
+  } catch (err) {
+    console.error("sendEmail exception:", err);
+    return { sent: false, reason: err instanceof Error ? err.message : "Unknown send error" };
+  }
 }
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

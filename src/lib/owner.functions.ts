@@ -353,3 +353,21 @@ export const advanceClock = createServerFn({ method: "POST" }).middleware([requi
   await db.from("settings").update({ clock_offset_minutes: settings.clock_offset_minutes + data.minutes }).eq("id", 1);
   return { ok: true };
 });
+
+export const testEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ to: z.string().email() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await guard(context);
+    const { sendEmail, getFromEmail } = await import("./email.server");
+    const result = await sendEmail(
+      data.to,
+      "Test email — Ekström VVS",
+      `<h1>Resend Configuration Test</h1><p>Your email service is working properly from <strong>${getFromEmail()}</strong>.</p>`,
+    );
+    if (!result.sent) {
+      throw new Error(result.reason || "Failed to send test email");
+    }
+    return { ok: true, from: getFromEmail() };
+  });
+
