@@ -136,6 +136,9 @@ export default function Book() {
   useEffect(() => {
     changeJobType('repair');
     setJobType(null);
+    setDone(null);
+    setBusy(false);
+    setStep(1);
   }, []);
 
   async function runAi() {
