@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from '@/figma/router';
+import { useServerFn } from '@tanstack/react-start';
 import { supabase } from '@/integrations/supabase/client';
+import { ownerService } from '@/lib/services';
 import plumbingBathroom from '@/assets/plumbing-bathroom.jpg';
 
 export default function Login() {
@@ -8,9 +10,30 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const navigate = useNavigate();
+  const getDemoCreds = useServerFn(ownerService.demoLogin);
+
+  const handleDemoLogin = async () => {
+    setDemoBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const creds = await getDemoCreds();
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: creds.email,
+        password: creds.password,
+      });
+      if (signInErr) throw signInErr;
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Demo access failed. Please try again.');
+    } finally {
+      setDemoBusy(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,13 +112,63 @@ export default function Login() {
       {/* Right form panel */}
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm animate-fade-up">
-          <div className="mb-8">
+          <div className="mb-6">
             <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>
               {mode === 'signin' ? 'Welcome back.' : 'Create account.'}
             </h1>
             <p style={{ fontSize: 14, color: '#6DA8C4' }}>
               {mode === 'signin' ? 'Sign in to your VVS Flow dashboard.' : 'The first account becomes the owner.'}
             </p>
+          </div>
+
+          {/* Quick Jury / Demo 1-Click Access Card */}
+          <div
+            className="mb-6 p-5 rounded-2xl relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, rgba(8,145,178,0.14) 0%, rgba(34,211,238,0.06) 100%)',
+              border: '1px solid rgba(34,211,238,0.3)',
+              boxShadow: '0 8px 32px rgba(8,145,178,0.15)',
+            }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span
+                className="px-2.5 py-0.5 rounded-full text-[10px] font-mono tracking-wider uppercase font-semibold"
+                style={{ background: 'rgba(34,211,238,0.2)', color: '#22D3EE' }}
+              >
+                ✦ Accès Jury & Démo
+              </span>
+              <span style={{ fontSize: 11, color: '#6DA8C4', fontFamily: 'JetBrains Mono' }}>
+                Sans mot de passe
+              </span>
+            </div>
+            <p style={{ fontSize: 13, color: '#A8CCE0', lineHeight: 1.5, marginBottom: 14 }}>
+              Accédez instantanément au dashboard en tant que <strong>Mats Ekström</strong> (propriétaire) avec l'état opérationnel et les données de démo.
+            </p>
+            <button
+              type="button"
+              onClick={handleDemoLogin}
+              disabled={demoBusy || busy}
+              className="w-full py-3.5 px-4 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2"
+              style={{
+                background: 'linear-gradient(135deg, #0891B2, #22D3EE)',
+                color: '#030E1C',
+                fontWeight: 700,
+                border: 'none',
+                cursor: demoBusy ? 'wait' : 'pointer',
+                boxShadow: '0 4px 16px rgba(8,145,178,0.35)',
+              }}
+            >
+              {demoBusy ? 'Connexion en cours…' : 'Accéder au Dashboard en 1 clic →'}
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px" style={{ background: 'rgba(8,145,178,0.15)' }} />
+            <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono', color: '#4A8BAA', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              ou connexion classique
+            </span>
+            <div className="flex-1 h-px" style={{ background: 'rgba(8,145,178,0.15)' }} />
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-6">
@@ -113,7 +186,7 @@ export default function Login() {
             </div>
             {error && <p role="alert" style={{ fontSize: 13, color: '#E53935' }}>{error}</p>}
             {notice && <p role="status" style={{ fontSize: 13, color: '#22C55E' }}>{notice}</p>}
-            <button type="submit" disabled={busy} className="btn-copper w-full py-4 rounded-xl font-semibold mt-2">
+            <button type="submit" disabled={busy || demoBusy} className="btn-copper w-full py-4 rounded-xl font-semibold mt-2">
               {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in →' : 'Create account →'}
             </button>
           </form>
