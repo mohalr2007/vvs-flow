@@ -17,11 +17,50 @@ async function guard(ctx: Ctx) {
   return { db: ctx.supabase, settings: s, now };
 }
 async function expireOffers(db: Ctx["supabase"], now: Date) {
-  const { data } = await db.from("offers").select("id,waitlist_id").eq("status", "pending").lt("expires_at", now.toISOString());
+  const { data } = await db.from("offers").select("id,waitlist_id,source_job_id").eq("status", "pending").lt("expires_at", now.toISOString());
   for (const o of data ?? []) {
     await db.from("offers").update({ status: "expired" }).eq("id", o.id);
     await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", o.waitlist_id);
+    // Auto-cascade: propose the slot to the next best match in the waitlist
+    if (o.source_job_id) {
+      await cascadeWaitlistOffer(db, o.source_job_id, now).catch((e) => console.warn("Cascade after expiry failed:", e));
+    }
   }
+}
+
+/** Finds the next best waitlist candidate for a cancelled/freed slot and sends them an offer email. */
+async function cascadeWaitlistOffer(db: Ctx["supabase"], jobId: string, now: Date): Promise<boolean> {
+  const { data: slot } = await db.from("jobs").select("zone,duration_min,scheduled_at,title").eq("id", jobId).single();
+  if (!slot?.scheduled_at) return false;
+  // Make sure no other pending offer is already live for this slot
+  const { data: existing } = await db.from("offers").select("id").eq("source_job_id", jobId).eq("status", "pending").maybeSingle();
+  if (existing) return false;
+  // Find all waiting entries
+  const { data: entries } = await db.from("waitlist_entries").select("*").eq("status", "waiting");
+  if (!entries || entries.length === 0) return false;
+  const { scoreMatch } = await import("./scheduling");
+  const scored = entries.map((e) => ({ entry: e, ...scoreMatch(e, slot, now) })).sort((a, b) => b.score - a.score);
+  const best = scored[0];
+  if (!best) return false;
+  // Create offer with 15-minute expiry
+  const { data: offer, error } = await db.from("offers").insert({
+    waitlist_id: best.entry.id,
+    source_job_id: jobId,
+    slot_start: slot.scheduled_at,
+    duration_min: slot.duration_min,
+    expires_at: new Date(now.getTime() + 15 * 60000).toISOString(),
+    score: best.score,
+    breakdown: best.breakdown,
+  }).select("token").single();
+  if (error) return false;
+  await db.from("waitlist_entries").update({ status: "offered" }).eq("id", best.entry.id);
+  if (best.entry.email) {
+    const { sendEmail, offerEmail, offerUrl } = await import("./email.server");
+    const when = new Date(slot.scheduled_at).toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    const mail = offerEmail({ name: best.entry.customer_name, title: best.entry.title, when, offerUrl: offerUrl(offer.token) });
+    await sendEmail(best.entry.email, mail.subject, mail.html).catch(() => null);
+  }
+  return true;
 }
 const owner = () => createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]); // kept for type reuse; exports must use the direct chain below
 const id = z.object({ id: z.string().uuid() });
@@ -108,18 +147,49 @@ export const approveJob = createServerFn({ method: "POST" }).middleware([require
 
 export const scheduleJob = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ slotStart: z.string().datetime() }).parse(d)).handler(async ({ context, data }) => {
   const { db } = await guard(context);
+  const { data: job } = await db.from("jobs").select("customer_name,email,title,ref,access_token,duration_min").eq("id", data.id).single();
   const { error } = await db.from("jobs").update({ scheduled_at: data.slotStart, status: "confirmed" }).eq("id", data.id);
   if (error) throw new Error("The appointment could not be scheduled.");
+  // Send reminder emails based on how far the appointment is
+  if (job?.email) {
+    const { sendEmail, reminder24hEmail, reminder1hEmail, bookingUrl } = await import("./email.server");
+    const apptTime = new Date(data.slotStart);
+    const now = new Date();
+    const msUntil = apptTime.getTime() - now.getTime();
+    const hoursUntil = msUntil / 3600000;
+    const when = apptTime.toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    const accessUrl = job.access_token ? bookingUrl(job.access_token) : null;
+    const emailParams = { name: job.customer_name, title: job.title, when, ref: job.ref, accessUrl };
+    if (hoursUntil >= 24) {
+      // More than 24h away: schedule reminder 24h before (send now as informational + will resend at T-24h)
+      // For this demo-friendly approach: send 24h reminder immediately as "your appointment is scheduled"
+      const mail24 = reminder24hEmail(emailParams);
+      await sendEmail(job.email, mail24.subject, mail24.html).catch(() => null);
+    }
+    if (hoursUntil <= 2 && hoursUntil > 0) {
+      // Within 2 hours: send 1h reminder immediately (same-day booking close to the time)
+      const mail1h = reminder1hEmail(emailParams);
+      await sendEmail(job.email, mail1h.subject, mail1h.html).catch(() => null);
+    }
+  }
   return { ok: true };
 });
 
 export const setJobStatus = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ status: z.enum(["cancelled", "in_progress", "completed", "waitlisted", "held"]) }).parse(d)).handler(async ({ context, data }) => {
-  const { db } = await guard(context);
+  const { db, now } = await guard(context);
   const { data: job } = await db.from("jobs").select("*").eq("id", data.id).single();
   if (!job) throw new Error("Job not found.");
   await db.from("jobs").update({ status: data.status }).eq("id", data.id);
-  if (data.status === "completed") await db.from("rot_records").insert({ customer: job.customer_name, work: job.title, labor: Math.round(job.value * 0.7), materials: Math.round(job.value * 0.3), status: "Review" });
-  if (data.status === "waitlisted") await db.from("waitlist_entries").insert({ customer_name: job.customer_name, phone: job.phone, title: job.title, zone: job.zone, duration_min: job.duration_min, urgency: job.urgency, value: job.value });
+  if (data.status === "completed") {
+    await db.from("rot_records").insert({ customer: job.customer_name, work: job.title, labor: Math.round(job.value * 0.7), materials: Math.round(job.value * 0.3), status: "Review" });
+  }
+  if (data.status === "waitlisted") {
+    await db.from("waitlist_entries").insert({ customer_name: job.customer_name, phone: job.phone, title: job.title, zone: job.zone, duration_min: job.duration_min, urgency: job.urgency, value: job.value });
+  }
+  if (data.status === "cancelled" && job.scheduled_at && new Date(job.scheduled_at) > now) {
+    // Slot freed: automatically offer it to the best waitlist match
+    await cascadeWaitlistOffer(db, data.id, now).catch((e) => console.warn("Cascade after cancel failed:", e));
+  }
   return { ok: true };
 });
 

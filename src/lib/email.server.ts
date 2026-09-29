@@ -262,24 +262,99 @@ export function offerEmail(p: { name: string; title: string; when: string; offer
   const content = `
     <p style="margin: 0 0 14px 0; font-size: 15px;">Hej <strong>${esc(p.name)}</strong>,</p>
     <p style="margin: 0 0 18px 0; color: #475569;">
-      Goda nyheter ! En tidigare tid har blivit ledig i vårt schema för din förfrågan :
+      Goda nyheter ! En tid har blivit ledig i vårt schema — en annan kund har avbokat och vi erbjuder dig platsen :
     </p>
 
     <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 0 0 20px 0;">
-      <p style="margin: 0 0 4px 0; font-size: 12px; color: #166534; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Nytt ledigt datum :</p>
-      <p style="margin: 0 0 6px 0; font-size: 18px; font-weight: 700; color: #15803d;">${esc(p.when)}</p>
-      <p style="margin: 0; font-size: 12px; color: #166534;">För : ${esc(p.title)}</p>
+      <p style="margin: 0 0 4px 0; font-size: 12px; color: #166534; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">📅 Datum och tid :</p>
+      <p style="margin: 0 0 6px 0; font-size: 20px; font-weight: 700; color: #15803d;">${esc(p.when)}</p>
+      <p style="margin: 0; font-size: 13px; color: #166534;">Tjänst : <strong>${esc(p.title)}</strong></p>
     </div>
 
-    <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 16px; margin: 0 0 18px 0; font-size: 13px; color: #92400e;">
-      ⏱ <strong>Begränsad giltighetstid :</strong> Detta erbjudande är reserverat för dig i <strong>15 minuter</strong>. Om du inte bekräftar går turen vidare till nästa person i kön.
+    <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0; font-size: 13px; color: #92400e;">
+      ⏱ <strong>Du har exakt 15 minuter</strong> på dig att acceptera detta erbjudande. Om du inte svarar i tid erbjuds platsen till nästa person i kön.
     </div>
 
-    ${button(p.offerUrl, "Acceptera tiden nu")}
+    ${button(p.offerUrl, "Acceptera tidsbokning nu →")}
+
+    <p style="margin: 14px 0 0 0; font-size: 12px; color: #94a3b8; text-align: center;">
+      Om du inte längre behöver en tid — inget svar behövs. Platsen går vidare automatiskt.
+    </p>
   `;
 
   return {
-    subject: `Ledig tid erbjudande : ${p.when} — Ekström VVS`,
-    html: layout("Ny ledig tid för din VVS-service", content),
+    subject: `⚡ Ledig tid för dig : ${p.when} — Ekström VVS`,
+    html: layout("En ledig tid för din VVS-service", content),
   };
 }
+
+// ─── RAPPEL 24H AVANT ────────────────────────────────────────────────────────
+export function reminder24hEmail(p: { name: string; title: string; when: string; ref: string; accessUrl: string | null }) {
+  const content = `
+    <p style="margin: 0 0 14px 0; font-size: 15px;">Hej <strong>${esc(p.name)}</strong>,</p>
+    <p style="margin: 0 0 18px 0; color: #475569;">
+      Vi påminner dig om att du har ett VVS-besök <strong>imorgon</strong>. Vänligen bekräfta att du är tillgänglig.
+    </p>
+
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin: 0 0 20px 0; overflow: hidden;">
+      <tr>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; width: 35%;">Tjänst :</td>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; color: #0f172a;">${esc(p.title)}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">Tid :</td>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 15px; font-weight: 700; color: #0891b2;">${esc(p.when)}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 16px; font-size: 12px; color: #64748b;">Referens :</td>
+        <td style="padding: 12px 16px; font-size: 13px; font-family: monospace; font-weight: 600; color: #0f172a;">${esc(p.ref)}</td>
+      </tr>
+    </table>
+
+    <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; margin: 0 0 18px 0; font-size: 13px; color: #1e40af;">
+      📋 <strong>Kom ihåg :</strong> Vänligen se till att tekniken har tillgång till din fastighet imorgon.
+    </div>
+
+    ${p.accessUrl ? button(p.accessUrl, "Bekräfta mitt besök →") : ""}
+  `;
+
+  return {
+    subject: `🔔 Påminnelse — VVS-besök imorgon : ${p.when} (${p.ref})`,
+    html: layout("Påminnelse : VVS-besök imorgon", content, `24 timmar kvar · Referens : ${p.ref}`),
+  };
+}
+
+// ─── RAPPEL 1H AVANT ─────────────────────────────────────────────────────────
+export function reminder1hEmail(p: { name: string; title: string; when: string; ref: string; accessUrl: string | null }) {
+  const content = `
+    <p style="margin: 0 0 14px 0; font-size: 15px;">Hej <strong>${esc(p.name)}</strong>,</p>
+    <p style="margin: 0 0 18px 0; color: #475569;">
+      Din VVS-tekniker anländer om ungefär <strong>1 timme</strong>. Vänligen se till att vara tillgänglig.
+    </p>
+
+    <div style="background-color: #0b1a28; border-radius: 10px; padding: 20px 24px; margin: 0 0 20px 0; text-align: center;">
+      <p style="margin: 0 0 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em;">Din bokade tid idag :</p>
+      <p style="margin: 0; font-size: 28px; font-weight: 700; color: #22d3ee; letter-spacing: 0.02em;">${esc(p.when)}</p>
+      <p style="margin: 6px 0 0 0; font-size: 13px; color: #cbd5e1;">${esc(p.title)}</p>
+    </div>
+
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin: 0 0 18px 0; overflow: hidden;">
+      <tr>
+        <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; width: 40%;">Referensnummer :</td>
+        <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-family: monospace; font-weight: 600; color: #0f172a;">${esc(p.ref)}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px 14px; font-size: 12px; color: #64748b;">Tekniker :</td>
+        <td style="padding: 10px 14px; font-size: 13px; font-weight: 600; color: #0f172a;">Ekström VVS · 021-123 456</td>
+      </tr>
+    </table>
+
+    ${p.accessUrl ? button(p.accessUrl, "Se bokningsdetaljer →") : ""}
+  `;
+
+  return {
+    subject: `🚐 Tekniker anländer om 1 timme — ${p.when} (${p.ref})`,
+    html: layout("Din VVS-tekniker anländer snart", content, `1 timme kvar · Referens : ${p.ref}`),
+  };
+}
+
