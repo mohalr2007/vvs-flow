@@ -34,7 +34,7 @@ export default function Emergency() {
   const ok =
     form.name.trim().length > 1 &&
     form.phone.replace(/\D/g, '').length >= 7 &&
-    loc.address.trim().length > 5 &&
+    loc.address.trim().length >= 4 &&
     form.description.trim().length > 3 &&
     loc.inside !== false;
 
