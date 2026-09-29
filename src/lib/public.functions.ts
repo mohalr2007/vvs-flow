@@ -135,7 +135,7 @@ export const createBooking = createServerFn({ method: "POST" })
     }
     if (data.email) {
       const { sendEmail, bookingConfirmationEmail, bookingUrl } = await import("./email.server");
-      const when = j.scheduled_at ? new Date(j.scheduled_at).toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : null;
+      const when = j.scheduled_at ? new Date(j.scheduled_at).toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : null;
       const mail = bookingConfirmationEmail({ name: data.name, title: data.title ?? "Plumbing request", when, ref: j.ref, accessUrl: bookingUrl(j.access_token) });
       await sendEmail(data.email, mail.subject, mail.html).catch(() => null);
     }

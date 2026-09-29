@@ -56,7 +56,7 @@ async function cascadeWaitlistOffer(db: Ctx["supabase"], jobId: string, now: Dat
   await db.from("waitlist_entries").update({ status: "offered" }).eq("id", best.entry.id);
   if (best.entry.email) {
     const { sendEmail, offerEmail, offerUrl } = await import("./email.server");
-    const when = new Date(slot.scheduled_at).toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    const when = new Date(slot.scheduled_at).toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
     const mail = offerEmail({ name: best.entry.customer_name, title: best.entry.title, when, offerUrl: offerUrl(offer.token) });
     await sendEmail(best.entry.email, mail.subject, mail.html).catch(() => null);
   }
@@ -157,7 +157,7 @@ export const scheduleJob = createServerFn({ method: "POST" }).middleware([requir
     const now = new Date();
     const msUntil = apptTime.getTime() - now.getTime();
     const hoursUntil = msUntil / 3600000;
-    const when = apptTime.toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    const when = apptTime.toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
     const accessUrl = job.access_token ? bookingUrl(job.access_token) : null;
     const emailParams = { name: job.customer_name, title: job.title, when, ref: job.ref, accessUrl };
     if (hoursUntil >= 24) {
@@ -237,7 +237,7 @@ export const sendOffer = createServerFn({ method: "POST" }).middleware([requireS
   let emailed = false;
   if (entry.email) {
     const { sendEmail, offerEmail, offerUrl } = await import("./email.server");
-    const when = new Date(slot.scheduled_at).toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    const when = new Date(slot.scheduled_at).toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
     const mail = offerEmail({ name: entry.customer_name, title: entry.title, when, offerUrl: offerUrl(offer.token) });
     emailed = (await sendEmail(entry.email, mail.subject, mail.html).catch(() => ({ sent: false }))).sent;
   }
@@ -431,25 +431,25 @@ export const testEmail = createServerFn({ method: "POST" })
     await guard(context);
     const { sendEmail, getFromEmail, layout } = await import("./email.server");
     const testContent = `
-      <p style="margin: 0 0 14px 0; font-size: 15px;">Hej Mats,</p>
+      <p style="margin: 0 0 14px 0; font-size: 15px;">Hello,</p>
       <p style="margin: 0 0 16px 0; color: #475569;">
-        Detta är ett bekräftelsetest från ditt administrativa gränssnitt <strong>Ekström VVS Flow</strong>.
+        This is a test message from your <strong>Ekström VVS Flow</strong> administration dashboard.
       </p>
       <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0;">
-        <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 600; color: #15803d;">✓ E-posttjänsten är fullt ansluten och driftklar !</p>
-        <p style="margin: 0; font-size: 12px; color: #166534;">Dina bokningsbekräftelser och 15-minuters erbjudanden skickas nu automatiskt.</p>
+        <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 600; color: #15803d;">✓ Email service is fully operational and connected!</p>
+        <p style="margin: 0; font-size: 12px; color: #166534;">Your booking confirmations, cancellation reallocations, and reminders are actively being delivered.</p>
       </div>
       <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin: 0 0 10px 0;">
         <tr>
-          <td style="padding: 10px 14px; font-size: 12px; color: #64748b; width: 35%;">Mottagare :</td>
+          <td style="padding: 10px 14px; font-size: 12px; color: #64748b; width: 35%;">Recipient:</td>
           <td style="padding: 10px 14px; font-size: 13px; font-weight: 600; color: #0f172a;">${data.to}</td>
         </tr>
       </table>
     `;
     const result = await sendEmail(
       data.to,
-      "Test e-post — Ekström VVS Flow (Driftklar)",
-      layout("E-posttjänst ansluten ✓", testContent, "Ekström VVS • Systemtest"),
+      "Test Email — Ekström VVS Flow (Operational)",
+      layout("Email Service Connected ✓", testContent, "Ekström VVS • System Test"),
     );
     if (!result.sent) {
       throw new Error(result.reason || "Failed to send test email");
