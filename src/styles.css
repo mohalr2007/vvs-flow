@@ -108,6 +108,23 @@ button, a, input, textarea, select { outline-offset: 3px; }
   color: var(--foreground);
 }
 
+/* Calendar dark-mode override — card is no longer paper-white */
+.dark .calendar-paper,
+[data-theme='dark'] .calendar-paper {
+  --background: oklch(.145 .035 248);
+  --foreground: oklch(.93 .03 220);
+  --card: oklch(.205 .045 244 / .92);
+  --card-foreground: oklch(.93 .03 220);
+  --primary: oklch(.62 .135 214);
+  --primary-foreground: oklch(.145 .035 248);
+  --muted: oklch(.23 .042 242);
+  --muted-foreground: oklch(.69 .07 224);
+  --border: oklch(.39 .08 220 / .42);
+  --copper: oklch(.62 .11 56);
+  background: var(--card);
+  color: var(--foreground);
+}
+
 .page-enter { animation: page-enter .38s cubic-bezier(.2,.75,.2,1) both; }
 .theme-icon-enter { display: grid; place-items: center; animation: theme-icon-enter .28s cubic-bezier(.2,.8,.2,1) both; }
 

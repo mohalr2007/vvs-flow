@@ -6,26 +6,60 @@ import ClientNav from '@/figma/components/ClientNav';
 import { bookingService } from '@/lib/services';
 import { uploadPhoto } from '@/lib/upload';
 import { fmtTime } from '@/lib/time';
+import { LocationPicker, type PickedLocation } from '@/figma/components/LocationPicker';
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Nothing has been changed.');
 type Result = Awaited<ReturnType<typeof bookingService.create>>;
 
+const EMPTY_LOC: PickedLocation = { address: '', lat: null, lng: null, inside: null, driveMinutes: null };
+
 export default function Emergency() {
   const create = useServerFn(bookingService.create);
-  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', description: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', description: '' });
+  const [loc, setLoc] = useState<PickedLocation>(EMPTY_LOC);
   const [photo, setPhoto] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<Result | null>(null);
 
-  const ok = form.name.trim() && form.phone.replace(/\D/g, '').length >= 7 && form.address.trim().length > 5 && form.description.trim().length > 3;
+  // Clear state on mount so previous emergency form data doesn't persist
+  useEffect(() => {
+    setForm({ name: '', phone: '', email: '', description: '' });
+    setLoc(EMPTY_LOC);
+    setPhoto(null);
+    setError('');
+    setResult(null);
+  }, []);
+
+  const ok =
+    form.name.trim().length > 1 &&
+    form.phone.replace(/\D/g, '').length >= 7 &&
+    loc.address.trim().length > 5 &&
+    form.description.trim().length > 3 &&
+    loc.inside !== false;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setError('');
     try {
       const photoPath = photo ? await uploadPhoto(photo) : null;
-      const r = await create({ data: { kind: 'emergency', ...form, title: 'Emergency leak', urgency: 'Emergency', duration_min: 90, price_high: null, confidence: null, missing_fields: null, slotStart: null, photoPath } });
+      const r = await create({
+        data: {
+          kind: 'emergency',
+          ...form,
+          address: loc.address,
+          title: 'Emergency leak',
+          urgency: 'Emergency',
+          duration_min: 90,
+          price_high: null,
+          confidence: null,
+          missing_fields: null,
+          slotStart: null,
+          photoPath,
+          lat: loc.lat ?? null,
+          lng: loc.lng ?? null,
+        },
+      });
       setResult(r);
     } catch (err) { setError(errMsg(err)); toast.error(errMsg(err)); } finally { setLoading(false); }
   };
@@ -57,6 +91,19 @@ export default function Emergency() {
                   View request status →
                 </Link>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  setResult(null);
+                  setForm({ name: '', phone: '', email: '', description: '' });
+                  setLoc(EMPTY_LOC);
+                  setPhoto(null);
+                  setError('');
+                }}
+                className="btn-ghost flex items-center justify-center py-3 rounded-xl text-sm font-semibold"
+              >
+                Submit another request +
+              </button>
             </div>
           </div>
         </div>
@@ -100,7 +147,6 @@ export default function Emergency() {
             { key: 'name', label: 'Your name', placeholder: 'Anna Lindström', type: 'text', required: true },
             { key: 'phone', label: 'Phone number', placeholder: '+46 73 456 78 90', type: 'tel', required: true },
             { key: 'email', label: 'Email (optional)', placeholder: 'anna@example.com', type: 'email', required: false },
-            { key: 'address', label: 'Address', placeholder: 'Vasagatan 14, Västerås', type: 'text', required: true },
           ].map(field => (
             <div key={field.key}>
               <label style={{ display: 'block', fontSize: 12, color: '#6DA8C4', fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
@@ -116,6 +162,13 @@ export default function Emergency() {
               />
             </div>
           ))}
+
+          {/* Location picker — same as standard booking */}
+          <LocationPicker
+            value={loc}
+            onChange={(v) => setLoc(v)}
+          />
+
           <div>
             <label style={{ display: 'block', fontSize: 12, color: '#6DA8C4', fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
               What is happening? <span style={{ color: '#E53935' }}>*</span>

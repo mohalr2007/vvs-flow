@@ -90,7 +90,8 @@ const bookingSchema = z.object({
   duration_min: z.number().int().min(15).max(480).nullable(), price_high: z.number().min(0).max(1000000).nullable(),
   confidence: z.number().min(0).max(100).nullable(), missing_fields: z.array(z.string().max(80)).max(5).nullable(),
   slotStart: z.string().datetime().nullable(), photoPath: z.string().regex(/^intake\/[a-f0-9-]+\.\w+$/).nullable(),
-  lat: z.number().min(-90).max(90).nullable(), lng: z.number().min(-180).max(180).nullable(),
+  lat: z.number().min(-90).max(90).nullable().optional(), lng: z.number().min(-180).max(180).nullable().optional(),
+  accessChoice: z.string().nullable().optional(),
 });
 
 export const createBooking = createServerFn({ method: "POST" })
@@ -112,7 +113,7 @@ export const createBooking = createServerFn({ method: "POST" })
     }
     if (data.kind === "emergency") {
       const eta = new Date(Math.ceil((now.getTime() + 35 * 60000) / 300000) * 300000);
-      const { data: j, error } = await db.from("jobs").insert({ customer_name: data.name, phone: data.phone, email: data.email, address: data.address, zone, title: data.title ?? "Emergency leak", description: data.description, status: "new", urgency: "Emergency", is_emergency: true, confidence: data.confidence ?? 0, duration_min: data.duration_min ?? 90, value: data.price_high ?? 0, scheduled_at: eta.toISOString(), photo_path: data.photoPath, ...coords }).select("ref,access_token").single();
+      const { data: j, error } = await db.from("jobs").insert({ customer_name: data.name, phone: data.phone, email: data.email, address: data.address, zone, title: data.title ?? "Emergency leak", description: data.description, status: "new", urgency: "Emergency", is_emergency: true, confidence: data.confidence ?? 0, duration_min: data.duration_min ?? 90, value: data.price_high ?? 0, access_status: data.accessChoice ?? null, scheduled_at: eta.toISOString(), photo_path: data.photoPath, ...coords }).select("ref,access_token").single();
       if (error) throw new Error("Your emergency request could not be saved. Please call us directly.");
       return { type: "emergency" as const, ref: j.ref, accessToken: j.access_token, scheduledAt: eta.toISOString(), eta: { from: eta.toISOString(), to: new Date(eta.getTime() + 25 * 60000).toISOString() } };
     }
@@ -124,7 +125,9 @@ export const createBooking = createServerFn({ method: "POST" })
       if (r.routeUnavailable) throw new Error("We couldn't check the route right now. Please try again in a moment.");
       if (!r.feasible.has(data.slotStart)) throw new Error("That time is no longer reachable. Please choose another time.");
     }
-    const { data: j, error } = await db.from("jobs").insert({ customer_name: data.name, phone: data.phone, email: data.email, address: data.address, zone, title: data.title ?? "Plumbing request", description: data.description, status: lowConfidence ? "needs_assessment" : "confirmed", urgency: data.urgency ?? "Normal", confidence, duration_min: data.duration_min ?? 60, value: data.price_high ?? 0, missing_fields: data.missing_fields ?? [], scheduled_at: lowConfidence ? null : data.slotStart, photo_path: data.photoPath, ...coords }).select("ref,access_token,scheduled_at").single();
+    const ready = Boolean(data.accessChoice && data.accessChoice !== "I need to arrange access");
+    const initialStatus = lowConfidence ? "needs_assessment" : (ready ? "access_confirmed" : "confirmed");
+    const { data: j, error } = await db.from("jobs").insert({ customer_name: data.name, phone: data.phone, email: data.email, address: data.address, zone, title: data.title ?? "Plumbing request", description: data.description, status: initialStatus, access_status: data.accessChoice ?? null, urgency: data.urgency ?? "Normal", confidence, duration_min: data.duration_min ?? 60, value: data.price_high ?? 0, missing_fields: data.missing_fields ?? [], scheduled_at: lowConfidence ? null : data.slotStart, photo_path: data.photoPath, ...coords }).select("ref,access_token,scheduled_at").single();
     if (error) throw new Error("Your booking hasn't been confirmed. Please try again.");
     if (j.scheduled_at) {
       const { data: row } = await db.from("jobs").select("id").eq("access_token", j.access_token).single();

@@ -22,6 +22,11 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
   // True while the typed text has no adopted location yet — cleared by every pick.
   const dirtyRef = useRef(true);
 
+  // Sync internal input state with external address changes (e.g. form resets)
+  useEffect(() => {
+    setQuery(value.address);
+  }, [value.address]);
+
   // Load Leaflet only in the browser.
   useEffect(() => {
     let cancelled = false;
@@ -41,11 +46,23 @@ export function LocationPicker({ value, onChange }: { value: PickedLocation; onC
         iconAnchor: [9, 9],
       });
       const marker = L.marker([BASE.lat, BASE.lng], { draggable: true, icon }).addTo(map);
-      marker.on('dragend', async () => {
+      const onPinMove = async (lat: number, lng: number) => {
+        try {
+          const info = await locatePin({ data: { lat, lng } });
+          setQuery(info.address);
+          dirtyRef.current = false;
+          onChange({ address: info.address, lat, lng, inside: info.inside, driveMinutes: info.driveMinutes });
+        } catch {
+          // ignore network failure
+        }
+      };
+      marker.on('dragend', () => {
         const p = marker.getLatLng();
-        const info = await locatePin({ data: { lat: p.lat, lng: p.lng } });
-        setQuery(info.address);
-        onChange({ address: info.address, lat: p.lat, lng: p.lng, inside: info.inside, driveMinutes: info.driveMinutes });
+        void onPinMove(p.lat, p.lng);
+      });
+      map.on('click', (e) => {
+        marker.setLatLng(e.latlng);
+        void onPinMove(e.latlng.lat, e.latlng.lng);
       });
       leafletRef.current = { map, marker };
       if (value.lat != null && value.lng != null) {

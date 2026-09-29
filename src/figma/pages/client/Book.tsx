@@ -1,6 +1,6 @@
 import { Wrench, Hammer } from 'lucide-react';
 import { downloadIcs } from '@/lib/ics';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from '@/figma/router';
 import { useServerFn } from '@tanstack/react-start';
 import { toast } from 'sonner';
@@ -9,17 +9,34 @@ import { bookingService } from '@/lib/services';
 import { LocationPicker, type PickedLocation } from '@/figma/components/LocationPicker';
 import { uploadPhoto } from '@/lib/upload';
 import type { SlotGroup } from '@/lib/vvs-data';
+import { ACCESS_OPTIONS } from '@/lib/vvs-data';
 import { fmtDay, fmtRange, fmtTime, sek } from '@/lib/time';
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Nothing has been changed.');
 
-type Step = 1 | 2 | 3 | 4 | 5 | 'done';
+// Steps: 1=Service, 2=Details, 3=Location, 4=Time(optional), 5=Access, 6=Confirm, 'done'
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 'done';
 
 const W = '#0891B2';
 const WL = '#22D3EE';
 
 type Ai = { title: string; summary: string; urgency: 'Low' | 'Normal' | 'High' | 'Emergency'; duration_min: number; price_low: number; price_high: number; confidence: number; needs_site_visit: boolean; location_hint: string | null; missing_fields: string[] };
 type Done = Awaited<ReturnType<typeof bookingService.create>>;
+
+const EMPTY_LOC: PickedLocation = { address: '', lat: null, lng: null, inside: null, driveMinutes: null };
+
+const ACCESS_ICONS: Record<string, string> = {
+  "Yes, I'll be home": '🏠',
+  'Key with neighbor': '🔑',
+  'Door code available': '🚪',
+  'I need to arrange access': '✏️',
+};
+const ACCESS_DESCS: Record<string, string> = {
+  "Yes, I'll be home": 'Someone will let Mats in on arrival.',
+  'Key with neighbor': "I'll leave a key with a neighbor.",
+  'Door code available': "I'll share the door code.",
+  'I need to arrange access': "I'll describe the access in a note.",
+};
 
 function StepProgress({ current, steps }: { current: number; steps: string[] }) {
   return (
@@ -68,7 +85,7 @@ export default function Book() {
   const [aiError, setAiError] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [form, setForm] = useState({ name: '', address: '', phone: '', email: '' });
-  const [loc, setLoc] = useState<PickedLocation>({ address: '', lat: null, lng: null, inside: null, driveMinutes: null });
+  const [loc, setLoc] = useState<PickedLocation>(EMPTY_LOC);
   const [photo, setPhoto] = useState<File | null>(null);
   const [groups, setGroups] = useState<SlotGroup[] | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -77,15 +94,48 @@ export default function Book() {
   const [submitError, setSubmitError] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Done | null>(null);
+  const [accessChoice, setAccessChoice] = useState<string | null>(null);
 
   const isProject = jobType === 'install';
   const lowConfidence = !!ai && ai.confidence < 60 && !isProject;
   const manual = !ai && !!aiError;
   const skipTime = isProject || lowConfidence || manual;
-  const steps = skipTime ? ['Service', 'Details', 'Location', 'Confirm'] : ['Service', 'Details', 'Location', 'Time', 'Confirm'];
-  const confirmStep = steps.length;
+
+  // steps array for progress bar; Access is always included (before Confirm)
+  const steps = skipTime
+    ? ['Service', 'Details', 'Location', 'Access', 'Confirm']
+    : ['Service', 'Details', 'Location', 'Time', 'Access', 'Confirm'];
+
+  // Logical step numbers (1-indexed)
+  const timeStep = skipTime ? null : 4;          // step 4 (skipped when skipTime)
+  const accessStep = skipTime ? 4 : 5;           // always present
+  const confirmStep = skipTime ? 5 : 6;          // last step
 
   const stepIndex = typeof step === 'number' ? step : confirmStep;
+
+  // Fully reset form when switching job type so stale state never persists
+  const changeJobType = (type: 'repair' | 'install') => {
+    setJobType(type);
+    setLeaking(null);
+    setAi(null);
+    setAiError('');
+    setDescription('');
+    setForm({ name: '', address: '', phone: '', email: '' });
+    setLoc(EMPTY_LOC);
+    setPhoto(null);
+    setGroups(null);
+    setSelectedSlot(null);
+    setSlotsError('');
+    setSlotsNote('');
+    setSubmitError('');
+    setAccessChoice(null);
+  };
+
+  // Reset all state on mount so visiting the page never keeps old form data
+  useEffect(() => {
+    changeJobType('repair');
+    setJobType(null);
+  }, []);
 
   async function runAi() {
     setAnalyzing(true); setAi(null); setAiError('');
@@ -116,28 +166,53 @@ export default function Book() {
           title: ai?.title ?? null, urgency: ai?.urgency ?? null, duration_min: ai?.duration_min ?? null,
           price_high: ai?.price_high ?? null, confidence: ai?.confidence ?? null, missing_fields: ai?.missing_fields ?? null,
           slotStart: skipTime ? null : selectedSlot, photoPath, lat: loc.lat, lng: loc.lng,
+          accessChoice: accessChoice ?? null,
         },
       });
       setDone(r); setStep('done');
     } catch (e) {
       setSubmitError(errMsg(e));
       toast.error(errMsg(e));
-      if (!skipTime) { setStep(4); void loadSlots(); }
+      // Go back to time step on failure so user can pick another slot
+      if (!skipTime) { setStep(timeStep as Step); void loadSlots(); }
     } finally { setBusy(false); }
   }
 
-  const goNext = () => {
+  const goNext = async () => {
     if (typeof step !== 'number') return;
     if (step === 1 && leaking) { navigate('/emergency'); return; }
-    if (step === confirmStep) { void submit(); return; }
+    if (step === 2 && !ai && !manual) {
+      if (description.trim().length >= 8) {
+        setAnalyzing(true);
+        try {
+          const r = await understand({ data: { message: description, kind: isProject ? 'project' : 'repair' } });
+          if ('data' in r) setAi(r.data); else setAiError(r.error);
+        } catch (e) {
+          setAiError(errMsg(e));
+        } finally {
+          setAnalyzing(false);
+        }
+      }
+      setStep(3);
+      return;
+    }
+    // Leaving Location step: load slots if not skipping time
     if (step === 3 && !skipTime) void loadSlots();
-    if (step === (skipTime ? 3 : 4)) { setStep((skipTime ? 4 : 5) as Step); return; }
+    // On confirm step: submit
+    if (step === confirmStep) { void submit(); return; }
     setStep(((step as number) + 1) as Step);
   };
+
   const goBack = () => setStep(s => (typeof s === 'number' && s > 1 ? (s - 1) as Step : s));
 
-  const groupedEntries = groups ? groups.map(g => ({ day: g.day, morning: g.slots.filter(s => Number(fmtTime(s.start).slice(0, 2)) < 12), afternoon: g.slots.filter(s => { const h = Number(fmtTime(s.start).slice(0, 2)); return h >= 12 && h < 17; }), evening: g.slots.filter(s => Number(fmtTime(s.start).slice(0, 2)) >= 17) })) : [];
+  const groupedEntries = groups ? groups.map(g => ({
+    day: g.day,
+    morning: g.slots.filter(s => Number(fmtTime(s.start).slice(0, 2)) < 12),
+    afternoon: g.slots.filter(s => { const h = Number(fmtTime(s.start).slice(0, 2)); return h >= 12 && h < 17; }),
+    evening: g.slots.filter(s => Number(fmtTime(s.start).slice(0, 2)) >= 17),
+  })) : [];
 
+  // ── Done screen ────────────────────────────────────────────
   if (step === 'done' && done) {
     const booked = done.type === 'booked' && done.scheduledAt;
     const duration = ai?.duration_min ?? 60;
@@ -150,8 +225,14 @@ export default function Book() {
               style={{ background: 'rgba(16,185,129,0.1)', border: '2px solid rgba(16,185,129,0.3)', boxShadow: '0 0 40px rgba(16,185,129,0.15)' }}>
               <span style={{ fontSize: 36 }}>✓</span>
             </div>
-            <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 36, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>{booked ? "You're booked." : 'Booking received.'}</h1>
-            <p style={{ color: '#6DA8C4', marginBottom: 24 }}>{booked ? `${fmtDay(done.scheduledAt!)} · ${fmtRange(done.scheduledAt!, duration)}` : done.type === 'project' ? 'Mats will contact you to plan a site visit.' : 'Mats will review your request and contact you personally.'}</p>
+            <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 36, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>
+              {booked ? "You're booked." : 'Booking received.'}
+            </h1>
+            <p style={{ color: '#6DA8C4', marginBottom: 24 }}>
+              {booked ? `${fmtDay(done.scheduledAt!)} · ${fmtRange(done.scheduledAt!, duration)}`
+                : done.type === 'project' ? 'Mats will contact you to plan a site visit.'
+                : 'Mats will review your request and contact you personally.'}
+            </p>
             <div style={{ background: 'rgba(7,26,46,0.75)', border: `1px solid rgba(8,145,178,0.15)`, borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'left' }}>
               <div className="flex justify-between items-center mb-4">
                 <span style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#6DA8C4', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Reference</span>
@@ -161,6 +242,7 @@ export default function Book() {
                 { label: 'Service', value: ai?.title ?? (isProject ? 'Project request' : 'Repair / Emergency') },
                 ...(booked ? [{ label: 'Time', value: `${fmtDay(done.scheduledAt!)} · ${fmtRange(done.scheduledAt!, duration)}` }] : []),
                 { label: 'Address', value: form.address || 'Provided' },
+                ...(accessChoice ? [{ label: 'Access method', value: accessChoice }] : []),
               ].map(r => (
                 <div key={r.label} className="flex justify-between py-2" style={{ borderBottom: '1px solid rgba(8,145,178,0.07)' }}>
                   <span style={{ fontSize: 13, color: '#6DA8C4' }}>{r.label}</span>
@@ -168,9 +250,21 @@ export default function Book() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-3">
-              {done.accessToken && <Link to={`/access/${done.accessToken}`} className="flex-1 btn-water no-underline inline-flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold">View booking</Link>}
-              {booked && <button className="flex-1 btn-ghost py-3 rounded-xl text-sm font-semibold" onClick={() => downloadIcs({ title: `Ekström VVS — ${ai?.title ?? 'Plumbing visit'}`, start: done.scheduledAt!, minutes: duration, location: form.address })}>Add to calendar</button>}
+            <div className="flex flex-wrap gap-3">
+              {done.accessToken && <Link to={`/access/${done.accessToken}`} className="flex-1 min-w-[130px] btn-water no-underline inline-flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold">View booking</Link>}
+              {booked && <button className="flex-1 min-w-[130px] btn-ghost py-3 rounded-xl text-sm font-semibold" onClick={() => downloadIcs({ title: `Ekström VVS — ${ai?.title ?? 'Plumbing visit'}`, start: done.scheduledAt!, minutes: duration, location: form.address || loc.address })}>Add to calendar</button>}
+              <button
+                type="button"
+                className="flex-1 min-w-[130px] btn-ghost py-3 rounded-xl text-sm font-semibold"
+                onClick={() => {
+                  setDone(null);
+                  setStep(1);
+                  changeJobType('repair');
+                  setJobType(null);
+                }}
+              >
+                New booking +
+              </button>
             </div>
           </div>
         </div>
@@ -186,6 +280,7 @@ export default function Book() {
           <StepProgress current={stepIndex} steps={steps} />
         </div>
 
+        {/* ── Step 1: Service type ─────────────────────────── */}
         {step === 1 && (
           <div className="animate-fade-up">
             <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>What do you need?</h2>
@@ -195,7 +290,7 @@ export default function Book() {
                 { id: 'repair', title: 'Repair / Emergency', desc: 'Something is broken, leaking, or not working.', icon: <Wrench size={28} color="#22D3EE" strokeWidth={1.6} /> },
                 { id: 'install', title: 'New Installation', desc: 'A new fixture, appliance, or full renovation.', icon: <Hammer size={28} color="#22D3EE" strokeWidth={1.6} /> },
               ].map(opt => (
-                <button key={opt.id} onClick={() => { setJobType(opt.id as 'repair' | 'install'); setLeaking(null); setAi(null); setAiError(''); }}
+                <button key={opt.id} onClick={() => changeJobType(opt.id as 'repair' | 'install')}
                   className="text-left p-6 rounded-xl transition-all duration-200"
                   style={{
                     background: jobType === opt.id ? 'rgba(8,145,178,0.1)' : 'rgba(7,26,46,0.75)',
@@ -224,6 +319,7 @@ export default function Book() {
           </div>
         )}
 
+        {/* ── Step 2: Describe ─────────────────────────────── */}
         {step === 2 && (
           <div className="animate-fade-up">
             <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>{isProject ? 'Tell us about your project' : 'Describe the problem'}</h2>
@@ -267,6 +363,7 @@ export default function Book() {
           </div>
         )}
 
+        {/* ── Step 3: Contact & Location ───────────────────── */}
         {step === 3 && (
           <div className="animate-fade-up">
             <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>Your details</h2>
@@ -298,6 +395,7 @@ export default function Book() {
           </div>
         )}
 
+        {/* ── Step 4: Pick a time (only when !skipTime) ────── */}
         {step === 4 && !skipTime && (
           <div className="animate-fade-up">
             <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>Pick a time</h2>
@@ -317,29 +415,61 @@ export default function Book() {
                   <span style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: W, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{fmtDay(g.day)}</span>
                   <div className="flex-1 h-px" style={{ background: 'rgba(8,145,178,0.1)' }} />
                 </div>
-                {[['Morning', g.morning], ['Afternoon', g.afternoon], ['Evening', g.evening]].map(([label, list]) => (list as { start: string; travel: string; recommended?: boolean }[]).length === 0 ? null : (
-                  <div key={label as string} className="mb-4">
-                    <p style={{ fontSize: 11, color: '#6DA8C4', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label as string}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(list as { start: string; travel: string; recommended?: boolean }[]).map(slot => (
-                        <button key={slot.start} onClick={() => setSelectedSlot(slot.start)} className={`slot-card text-left ${selectedSlot === slot.start ? 'selected' : ''}`}>
-                          <div className="flex items-center gap-2" style={{ marginBottom: 4 }}>
-                            <span style={{ fontFamily: 'JetBrains Mono', fontSize: 18, fontWeight: 500, color: '#D9EEF7' }}>{fmtTime(slot.start)}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: slot.recommended ? '#E8A06A' : '#22D3EE' }}>{slot.recommended ? 'Recommended' : 'Available'}</span>
-                          </div>
-                          <div style={{ fontSize: 12, color: '#6DA8C4' }}>{slot.travel}</div>
-                        </button>
-                      ))}
+                {[['Morning', g.morning], ['Afternoon', g.afternoon], ['Evening', g.evening]].map(([label, list]) =>
+                  (list as { start: string; travel: string; recommended?: boolean }[]).length === 0 ? null : (
+                    <div key={label as string} className="mb-4">
+                      <p style={{ fontSize: 11, color: '#6DA8C4', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label as string}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(list as { start: string; travel: string; recommended?: boolean }[]).map(slot => (
+                          <button key={slot.start} onClick={() => setSelectedSlot(slot.start)} className={`slot-card text-left ${selectedSlot === slot.start ? 'selected' : ''}`}>
+                            <div className="flex items-center gap-2" style={{ marginBottom: 4 }}>
+                              <span style={{ fontFamily: 'JetBrains Mono', fontSize: 18, fontWeight: 500, color: '#D9EEF7' }}>{fmtTime(slot.start)}</span>
+                              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: slot.recommended ? '#E8A06A' : '#22D3EE' }}>{slot.recommended ? 'Recommended' : 'Available'}</span>
+                            </div>
+                            <div style={{ fontSize: 12, color: '#6DA8C4' }}>{slot.travel}</div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             ))}
             {slotsError && <p style={{ marginTop: 12, fontSize: 13, color: '#EF5350' }}>{slotsError}</p>}
           </div>
         )}
 
-        {step === (skipTime ? 4 : 5) && (
+        {/* ── Step accessStep: How will Mats get in? ──────── */}
+        {step === accessStep && (
+          <div className="animate-fade-up">
+            <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>How will Mats get in?</h2>
+            <p style={{ color: '#6DA8C4', marginBottom: 28, fontSize: 15 }}>Choose the access method so there's no delay on the day.</p>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {ACCESS_OPTIONS.map(opt => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setAccessChoice(opt)}
+                  className="text-left p-4 rounded-xl transition-all duration-200"
+                  style={{
+                    background: accessChoice === opt ? 'rgba(8,145,178,0.1)' : 'rgba(7,26,46,0.75)',
+                    border: `1px solid ${accessChoice === opt ? W : 'rgba(8,145,178,0.12)'}`,
+                    boxShadow: accessChoice === opt ? `0 0 0 3px rgba(8,145,178,0.15)` : 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontSize: 24, marginBottom: 8 }}>{ACCESS_ICONS[opt]}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#D9EEF7', marginBottom: 4 }}>{opt}</div>
+                  <div style={{ fontSize: 11, color: '#6DA8C4', lineHeight: 1.4 }}>{ACCESS_DESCS[opt]}</div>
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize: 12, color: '#2E5B75' }}>You can update this later from your booking link.</p>
+          </div>
+        )}
+
+        {/* ── Step confirmStep: Review & confirm ──────────── */}
+        {step === confirmStep && (
           <div className="animate-fade-up">
             <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 300, color: '#D9EEF7', marginBottom: 8 }}>Review & confirm</h2>
             <p style={{ color: '#6DA8C4', marginBottom: 24, fontSize: 15 }}>Nothing is confirmed until you press the button below.</p>
@@ -350,6 +480,7 @@ export default function Book() {
                 { label: 'Address', value: form.address || '—' },
                 { label: 'Phone', value: form.phone || '—' },
                 { label: 'Time', value: skipTime ? (isProject ? "We'll contact you" : "We'll contact you to agree a time") : (selectedSlot ? `${fmtDay(selectedSlot)} · ${fmtRange(selectedSlot, ai?.duration_min ?? 60)}` : '—') },
+                { label: 'Access', value: accessChoice ?? 'Not specified' },
                 { label: 'Estimate', value: ai && ai.price_high ? `${sek(ai.price_low)} – ${sek(ai.price_high)}` : isProject ? 'Site visit free of charge' : 'After assessment' },
               ].map((row, i, arr) => (
                 <div key={row.label} className="flex justify-between px-5 py-4" style={{ borderBottom: i < arr.length - 1 ? '1px solid rgba(8,145,178,0.07)' : 'none' }}>
@@ -365,6 +496,7 @@ export default function Book() {
           </div>
         )}
 
+        {/* ── Bottom navigation bar ───────────────────────── */}
         <div className="sticky-bar">
           <div className="flex gap-3">
             {typeof step === 'number' && step > 1 && (
@@ -378,19 +510,35 @@ export default function Book() {
               </button>
             )}
             {step === 2 && (
-              <button onClick={goNext} disabled={!ai && !manual} className="btn-water flex-1 py-4 rounded-xl font-semibold"
-                style={{ opacity: !ai && !manual ? 0.4 : 1 }}>Continue →</button>
+              <button
+                onClick={() => void goNext()}
+                disabled={description.trim().length < 8 || analyzing}
+                className="btn-water flex-1 py-4 rounded-xl font-semibold"
+                style={{ opacity: description.trim().length < 8 || analyzing ? 0.4 : 1 }}
+              >
+                {analyzing ? 'Analysing request…' : 'Continue →'}
+              </button>
             )}
             {step === 3 && (
-              <button onClick={goNext} disabled={!form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 || loc.inside !== true}
+              <button
+                onClick={() => void goNext()}
+                disabled={!form.name || (form.address.trim().length <= 5 && loc.address.trim().length <= 5) || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false}
                 className="btn-water flex-1 py-4 rounded-xl font-semibold"
-                style={{ opacity: !form.name || form.address.trim().length <= 5 || form.phone.replace(/\D/g, '').length < 7 || loc.inside !== true ? 0.4 : 1 }}>Continue →</button>
+                style={{ opacity: !form.name || (form.address.trim().length <= 5 && loc.address.trim().length <= 5) || form.phone.replace(/\D/g, '').length < 7 || loc.inside === false ? 0.4 : 1 }}
+              >
+                Continue →
+              </button>
             )}
             {step === 4 && !skipTime && (
               <button onClick={goNext} disabled={!selectedSlot} className="btn-water flex-1 py-4 rounded-xl font-semibold"
                 style={{ opacity: !selectedSlot ? 0.4 : 1 }}>Continue →</button>
             )}
-            {step === (skipTime ? 4 : 5) && (
+            {step === accessStep && (
+              <button onClick={goNext} className="btn-water flex-1 py-4 rounded-xl font-semibold">
+                Continue →
+              </button>
+            )}
+            {step === confirmStep && (
               <button onClick={goNext} disabled={busy} className="btn-water flex-1 py-4 rounded-xl font-semibold">
                 {busy ? 'Sending…' : skipTime ? 'Send request ✓' : 'Confirm booking ✓'}
               </button>
