@@ -392,6 +392,32 @@ export default function Book() {
                   <input type="file" accept="image/*" className="sr-only" onChange={e => setPhoto(e.target.files?.[0] ?? null)} />
                 </label>
               </div>
+
+              {/* Access method — collected together with the customer details */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#6DA8C4', fontFamily: 'JetBrains Mono', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>How will Mats get in?</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {ACCESS_OPTIONS.map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setAccessChoice(opt)}
+                      className="text-left p-4 rounded-xl transition-all duration-200"
+                      style={{
+                        background: accessChoice === opt ? 'rgba(8,145,178,0.1)' : 'rgba(7,26,46,0.75)',
+                        border: `1px solid ${accessChoice === opt ? W : 'rgba(8,145,178,0.12)'}`,
+                        boxShadow: accessChoice === opt ? `0 0 0 3px rgba(8,145,178,0.15)` : 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ fontSize: 22, marginBottom: 6 }}>{ACCESS_ICONS[opt]}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#D9EEF7', marginBottom: 4 }}>{opt}</div>
+                      <div style={{ fontSize: 11, color: '#6DA8C4', lineHeight: 1.4 }}>{ACCESS_DESCS[opt]}</div>
+                    </button>
+                  ))}
+                </div>
+                <p style={{ fontSize: 12, color: '#2E5B75', marginTop: 8 }}>Optional — you can change this later from your booking link.</p>
+              </div>
             </div>
           </div>
         )}
