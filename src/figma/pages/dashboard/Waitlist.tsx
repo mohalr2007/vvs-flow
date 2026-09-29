@@ -74,6 +74,67 @@ export default function Waitlist() {
           </div>
         )}
 
+        {/* Waitlist entries list — always visible */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 20, fontWeight: 300, color: T.text }}>People waiting</h2>
+              <span style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#7B61FF', background: 'rgba(123,97,255,0.12)', border: '1px solid rgba(123,97,255,0.2)', borderRadius: 20, padding: '2px 10px' }}>
+                {d.entries.length}
+              </span>
+            </div>
+          </div>
+          {d.entries.length === 0 ? (
+            <div className="rounded-2xl p-8 text-center" style={{ background: T.cardAlt, border: `1px solid ${T.cardBorder}` }}>
+              <div style={{ fontSize: 36, marginBottom: 8, opacity: 0.35 }}>⏳</div>
+              <p style={{ fontSize: 13, color: T.textDim }}>Nobody on the waitlist yet. Registrations from <strong style={{ color: T.textMid }}>/waitlist</strong> appear here.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {d.entries.map((e: WaitlistEntry) => (
+                <div key={e.id} className="rounded-xl p-4" style={{ background: T.cardAlt, border: `1px solid ${T.cardBorder}` }}>
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span style={{ fontFamily: 'Fraunces, serif', fontSize: 16, fontWeight: 400, color: T.text }}>{e.customer_name}</span>
+                        <span style={{
+                          fontFamily: 'JetBrains Mono', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
+                          padding: '2px 8px', borderRadius: 10,
+                          background: e.urgency === 'High' ? 'rgba(239,68,68,0.1)' : e.urgency === 'Normal' ? 'rgba(234,179,8,0.1)' : 'rgba(34,197,94,0.1)',
+                          color: e.urgency === 'High' ? '#F87171' : e.urgency === 'Normal' ? '#FBBF24' : '#4ADE80',
+                          border: `1px solid ${e.urgency === 'High' ? 'rgba(239,68,68,0.2)' : e.urgency === 'Normal' ? 'rgba(234,179,8,0.2)' : 'rgba(34,197,94,0.2)'}`,
+                        }}>{e.urgency}</span>
+                        <span style={{
+                          fontFamily: 'JetBrains Mono', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
+                          padding: '2px 8px', borderRadius: 10,
+                          background: e.status === 'offered' ? 'rgba(8,145,178,0.1)' : 'rgba(123,97,255,0.1)',
+                          color: e.status === 'offered' ? '#0891B2' : '#7B61FF',
+                          border: `1px solid ${e.status === 'offered' ? 'rgba(8,145,178,0.2)' : 'rgba(123,97,255,0.2)'}`,
+                        }}>{e.status}</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: T.textMid, marginBottom: 4 }}>{e.title ?? 'No description'}</div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        {e.email && <span style={{ fontSize: 11, color: T.textDim }}>✉ {e.email}</span>}
+                        {e.phone && <span style={{ fontSize: 11, color: T.textDim }}>📞 {e.phone}</span>}
+                        {e.zone && <span style={{ fontSize: 11, color: T.textDim }}>Zone {e.zone}</span>}
+                        {e.flexibility && <span style={{ fontSize: 11, color: T.textDim }}>🕐 {e.flexibility}</span>}
+                        {e.duration_min && <span style={{ fontSize: 11, color: T.textDim }}>⏱ {e.duration_min} min</span>}
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: T.textDim, whiteSpace: 'nowrap', textAlign: 'right' }}>
+                      {new Date(e.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Slot recovery section */}
+        <div className="mb-4" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: T.textDim, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          Slot recovery
+        </div>
         {!slot ? (
           <div className="text-center py-12" style={{ color: T.textDim }}>
             <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.4 }}>◉</div>
