@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
 import DashboardLayout from '@/figma/components/DashboardLayout';
-import { useDashTheme } from '@/figma/context/DashTheme';
+import { useDashTheme, type ThemeTokens } from '@/figma/context/DashTheme';
 import { waitlistService } from '@/lib/services';
 import { fmtRange, fmtShortDay, sek } from '@/lib/time';
 import type { WaitlistEntry } from '@/lib/vvs-data';
@@ -29,7 +29,7 @@ function StatusBadge({ v }: { v?: string | null }) {
 
 function WaitlistCard({ entry, T, onDelete, onBook }: {
   entry: WaitlistEntry;
-  T: Record<string, string>;
+  T: ThemeTokens;
   onDelete: (id: string) => void;
   onBook: (entry: WaitlistEntry) => void;
 }) {
@@ -144,7 +144,7 @@ function WaitlistCard({ entry, T, onDelete, onBook }: {
 
 function BookModal({ entry, T, onClose, onDone }: {
   entry: WaitlistEntry;
-  T: Record<string, string>;
+  T: ThemeTokens;
   onClose: () => void;
   onDone: () => void;
 }) {
