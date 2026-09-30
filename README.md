@@ -128,19 +128,34 @@ App will run locally at `http://localhost:3000`.
 
 ## 📬 Environment Configuration (.env)
 
+Secrets are **never** committed — the repository ships [`.env.example`](.env.example) with the full variable list and no values.
+
+```bash
+# 1. Create your local .env from the template
+cp .env.example .env
+
+# 2. Fill in your own keys:
+#    • Supabase — Project URL + publishable key (Project Settings → API)
+#    • EmailJS  — service ID, template ID, public + private key (Account → API keys)
+#      or set RESEND_API_KEY to use Resend instead
+```
+
 ```env
-# Supabase
-SUPABASE_URL="https://mssxhxciexlusccbjecy.supabase.co"
+# .env.example (excerpt — no real values in this repo)
+SUPABASE_URL="https://<your-project>.supabase.co"
 SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."
-VITE_SUPABASE_URL="https://mssxhxciexlusccbjecy.supabase.co"
+VITE_SUPABASE_URL="https://<your-project>.supabase.co"
 VITE_SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."
 
-# Email Automation (EmailJS - Free 200 emails/mo)
-EMAILJS_SERVICE_ID="VVS"
-EMAILJS_TEMPLATE_ID="template_889qfif"
-EMAILJS_PUBLIC_KEY="WMKnGylJlm0kUN8g2"
-EMAILJS_PRIVATE_KEY="BopuvPQv944TyBz9oCkdl"
+EMAILJS_SERVICE_ID="service_..."
+EMAILJS_TEMPLATE_ID="template_..."
+EMAILJS_PUBLIC_KEY="your_public_key"
+EMAILJS_PRIVATE_KEY="your_private_key"
 ```
+
+> **Security note:** if a credential was ever exposed in Git history, rotate it in the
+> provider dashboard (EmailJS → Account → API keys). Removing the file from the latest
+> commit does not erase history; rotation is the effective remediation.
 
 ---
 
