@@ -16,6 +16,20 @@ async function context() {
   return { db, settings, now };
 }
 type Coords = { lat: number; lng: number } | null;
+// Coordinates for slot math: the pinned location when present, otherwise the typed address is
+// geocoded server-side so OSRM route feasibility governs availability in every case —
+// the fixed 20-minute zone buffer remains only as the last-resort fallback when the
+// geocoder is unreachable.
+async function resolveCoords(lat?: number | null, lng?: number | null, address?: string): Promise<Coords> {
+  if (lat != null && lng != null) return { lat, lng };
+  if (!address || address.trim().length < 4) return null;
+  try {
+    const { searchAddresses } = await import("./location.server");
+    const hits = await searchAddresses(address.trim());
+    if (hits[0]) return { lat: hits[0].lat, lng: hits[0].lng };
+  } catch { /* geocoder unreachable — caller falls back to zone-based slots */ }
+  return null;
+}
 // Route-aware when the customer location is known; falls back to zone gaps for legacy jobs without coordinates.
 async function slotsFor(duration: number, zone: string, customer: Coords, excludeJobId?: string) {
   const { db, settings, now } = await context();
@@ -74,7 +88,7 @@ export const understandRequest = createServerFn({ method: "POST" })
 export const getAvailableSlots = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ duration: z.number().int().min(15).max(480), address: z.string().max(200), lat: z.number().min(-90).max(90).nullable().optional(), lng: z.number().min(-180).max(180).nullable().optional() }).parse(d))
   .handler(async ({ data }) => {
-    const customer = data.lat != null && data.lng != null ? { lat: data.lat, lng: data.lng } : null;
+    const customer = await resolveCoords(data.lat, data.lng, data.address);
     if (customer) {
       const { isInsideServiceArea } = await import("./location.server");
       if (!isInsideServiceArea(customer.lat, customer.lng)) return { groups: [], routeUnavailable: false, outsideArea: true };
@@ -109,13 +123,15 @@ export const createBooking = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { db, now } = await context();
     const zone = zoneFromAddress(data.address);
-    // Service-area validation: a pinned location must be inside the Västerås area.
-    if (data.lat != null && data.lng != null) {
+    // Service-area validation and route-aware slots apply to pinned AND typed addresses:
+    // the address is geocoded server-side when no map pin was set.
+    const customerCoords = await resolveCoords(data.lat, data.lng, data.address);
+    if (customerCoords) {
       const { isInsideServiceArea, SERVICE_AREA } = await import("./location.server");
-      if (!isInsideServiceArea(data.lat, data.lng))
+      if (!isInsideServiceArea(customerCoords.lat, customerCoords.lng))
         throw new Error(`This address is outside our service area (${SERVICE_AREA.name} + ${SERVICE_AREA.radiusKm} km). Please call us for options.`);
     }
-    const coords = data.lat != null && data.lng != null ? { lat: data.lat, lng: data.lng } : {};
+    const coords = customerCoords ?? {};
     if (data.kind === "project") {
       const { data: p, error } = await db.from("projects").insert({ title: data.title ?? "Project request", customer_name: data.name, phone: data.phone, email: data.email, address: data.address, description: data.description, status: "site_visit_requested", ...coords }).select("ref").single();
       if (error) throw new Error("Your request could not be saved. Please try again.");
@@ -146,8 +162,8 @@ export const createBooking = createServerFn({ method: "POST" })
         data.slotStart = scheduledDate.toISOString();
       }
       // Backend revalidation: the slot must still be feasible at submit time — route-aware when the
-      // customer location is known, calendar-gap based otherwise — not only when it was first listed.
-      const customerCoords: Coords = data.lat != null && data.lng != null ? { lat: data.lat, lng: data.lng } : null;
+      // customer location is known (pinned or geocoded), calendar-gap based otherwise — not only
+      // when it was first listed.
       const re = await slotsFor(data.duration_min ?? 60, zone, customerCoords);
       if (!re.routeUnavailable && !re.feasible.has(data.slotStart)) {
         throw new Error("That time is no longer available. Please choose another time.");
@@ -202,9 +218,9 @@ export const getRescheduleOptions = createServerFn({ method: "POST" })
     const db = await admin();
     const { data: job } = await db.from("jobs").select("id," + publicJob).eq("access_token", data.token).maybeSingle();
     if (!job) return { job: null, groups: [] };
-    const { data: pos } = await db.from("jobs").select("lat,lng").eq("access_token", data.token).maybeSingle();
+    const { data: pos } = await db.from("jobs").select("lat,lng,address").eq("access_token", data.token).maybeSingle();
     const j = job as unknown as { id: string; duration_min: number; zone: string };
-    const r = await slotsFor(j.duration_min, j.zone, pos?.lat != null && pos?.lng != null ? { lat: pos.lat, lng: pos.lng } : null, j.id);
+    const r = await slotsFor(j.duration_min, j.zone, await resolveCoords(pos?.lat, pos?.lng, pos?.address ?? undefined), j.id);
     return { job, groups: r.groups, routeUnavailable: r.routeUnavailable };
   });
 
@@ -212,9 +228,9 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
   .inputValidator((d) => token.extend({ slotStart: z.string().datetime() }).parse(d))
   .handler(async ({ data }) => {
     const db = await admin();
-    const { data: job } = await db.from("jobs").select("id,duration_min,zone,status,lat,lng,scheduled_at").eq("access_token", data.token).maybeSingle();
+    const { data: job } = await db.from("jobs").select("id,duration_min,zone,status,lat,lng,scheduled_at,address").eq("access_token", data.token).maybeSingle();
     if (!job || !["confirmed", "access_confirmed"].includes(job.status)) throw new Error("This appointment can no longer be rescheduled.");
-    const r = await slotsFor(job.duration_min, job.zone, job.lat != null && job.lng != null ? { lat: job.lat, lng: job.lng } : null, job.id);
+    const r = await slotsFor(job.duration_min, job.zone, await resolveCoords(job.lat, job.lng, job.address), job.id);
     if (!r.feasible.has(data.slotStart)) throw new Error("That time is no longer available.");
     await db.from("jobs").update({ scheduled_at: data.slotStart, status: "confirmed", access_status: null }).eq("id", job.id);
     // Final guard against a concurrent booking that slipped in: roll back to the original time.
