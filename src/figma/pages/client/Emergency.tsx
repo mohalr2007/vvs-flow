@@ -11,11 +11,12 @@ import { LocationPicker, type PickedLocation } from '@/figma/components/Location
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Nothing has been changed.');
 type Result = Awaited<ReturnType<typeof bookingService.create>>;
 
+const EMPTY_FORM = { name: '', phone: '', email: '', description: '' };
 const EMPTY_LOC: PickedLocation = { address: '', lat: null, lng: null, inside: null, driveMinutes: null };
 
 export default function Emergency() {
   const create = useServerFn(bookingService.create);
-  const [form, setForm] = useState({ name: '', phone: '', email: '', description: '' });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [loc, setLoc] = useState<PickedLocation>(EMPTY_LOC);
   const [photo, setPhoto] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -24,7 +25,7 @@ export default function Emergency() {
 
   // Clear state on mount so previous emergency form data doesn't persist
   useEffect(() => {
-    setForm({ name: '', phone: '', email: '', description: '' });
+    setForm(EMPTY_FORM);
     setLoc(EMPTY_LOC);
     setPhoto(null);
     setError('');

@@ -23,6 +23,7 @@ const WL = '#22D3EE';
 type Ai = { title: string; summary: string; urgency: 'Low' | 'Normal' | 'High' | 'Emergency'; duration_min: number; price_low: number; price_high: number; confidence: number; needs_site_visit: boolean; location_hint: string | null; missing_fields: string[] };
 type Done = Awaited<ReturnType<typeof bookingService.create>> | { type: 'waitlist'; ref: string; accessToken: null; scheduledAt: null; eta: null };
 
+const EMPTY_FORM = { name: '', address: '', phone: '', email: '' };
 const EMPTY_LOC: PickedLocation = { address: '', lat: null, lng: null, inside: null, driveMinutes: null };
 
 const ACCESS_ICONS: Record<string, string> = {
@@ -85,7 +86,7 @@ export default function Book() {
   const [ai, setAi] = useState<Ai | null>(null);
   const [aiError, setAiError] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
-  const [form, setForm] = useState({ name: '', address: '', phone: '', email: '' });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [loc, setLoc] = useState<PickedLocation>(EMPTY_LOC);
   const [photo, setPhoto] = useState<File | null>(null);
   const [groups, setGroups] = useState<SlotGroup[] | null>(null);
@@ -122,7 +123,7 @@ export default function Book() {
     setAi(null);
     setAiError('');
     setDescription('');
-    setForm({ name: '', address: '', phone: '', email: '' });
+    setForm(EMPTY_FORM);
     setLoc(EMPTY_LOC);
     setPhoto(null);
     setGroups(null);

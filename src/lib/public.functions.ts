@@ -260,21 +260,47 @@ export const respondOffer = createServerFn({ method: "POST" })
     }
     const { data: claimed } = await db.from("offers").update({ status: "accepted" }).eq("id", offer.id).eq("status", "pending").select("id").maybeSingle();
     if (!claimed) throw new Error("This offer is no longer available.");
-    const { data: job, error: jobErr } = await db.from("jobs").insert({ customer_name: w.customer_name, phone: w.phone, zone: w.zone, title: w.title, description: "Recovered from waitlist offer.", status: "confirmed", urgency: w.urgency, confidence: 100, duration_min: offer.duration_min, value: w.value, scheduled_at: offer.slot_start }).select("id,ref,access_token").single();
-    if (jobErr || !job) {
-      await db.from("offers").update({ status: "expired" }).eq("id", offer.id);
-      await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", w.id);
-      throw new Error("Could not secure the booking. Please try again.");
+    // Recover the freed slot in place: the cancelled booking itself becomes the new confirmed appointment,
+    // with a fresh access token so the previous customer's portal link stops working.
+    const recovery = {
+      customer_name: w.customer_name, phone: w.phone, email: w.email || "", title: w.title || "Plumbing request",
+      description: "Recovered from waitlist offer.", status: "confirmed" as const, urgency: w.urgency || "Normal",
+      confidence: 100, duration_min: offer.duration_min, value: w.value || 0, zone: w.zone || "",
+      address: "", lat: null, lng: null, photo_path: null, access_status: null, missing_fields: [] as string[],
+      is_emergency: false, access_token: crypto.randomUUID().replaceAll("-", ""),
+    };
+    const recoveryFields = Object.keys(recovery).join(",");
+    type JobUpdate = import("@/integrations/supabase/types").TablesUpdate<"jobs">;
+    const sourceId = offer.source_job_id;
+    let job: { id: string; ref: string; access_token: string } | null = null;
+    let snapshot: JobUpdate | null = null;
+    if (sourceId) {
+      const { data: src } = await db.from("jobs").select(recoveryFields).eq("id", sourceId).single();
+      if (src) snapshot = src as JobUpdate;
+    }
+    if (snapshot && sourceId) {
+      const { data: updated, error: updErr } = await db.from("jobs").update(recovery).eq("id", sourceId).select("id,ref,access_token").single();
+      if (!updErr && updated) job = updated;
+    }
+    if (!job) {
+      // Fallback when the original booking row is gone (e.g. deleted source job).
+      const { data: inserted, error: insErr } = await db.from("jobs").insert({ ...recovery, scheduled_at: offer.slot_start }).select("id,ref,access_token").single();
+      if (insErr || !inserted) {
+        await db.from("offers").update({ status: "expired" }).eq("id", offer.id);
+        await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", w.id);
+        throw new Error("Could not secure the booking. Please try again.");
+      }
+      job = inserted;
     }
     // Final race guard: if another booking slipped into the slot after the pre-check, roll the recovery back.
     if (await slotTaken(db, offer.slot_start, offer.duration_min, job.id)) {
-      await db.from("jobs").delete().eq("id", job.id);
+      if (snapshot) await db.from("jobs").update(snapshot).eq("id", job.id);
+      else await db.from("jobs").delete().eq("id", job.id);
       await db.from("offers").update({ status: "expired" }).eq("id", offer.id);
       await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", w.id);
       throw new Error("That time was just taken. You keep your waitlist priority.");
     }
     await db.from("waitlist_entries").update({ status: "booked" }).eq("id", w.id);
-    if (offer.source_job_id) await db.from("jobs").update({ status: "expired" }).eq("id", offer.source_job_id);
     if (w.email) {
       const { sendEmail, bookingConfirmationEmail, bookingUrl } = await import("./email.server");
       const when = new Date(offer.slot_start).toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
