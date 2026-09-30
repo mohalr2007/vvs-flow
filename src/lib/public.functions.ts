@@ -1,7 +1,7 @@
 // Public customer server functions. Every write is validated and token-scoped server-side.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { findSlots } from "./scheduling";
+import { findSlots, jobOverlaps } from "./scheduling";
 import { zoneFromAddress } from "./time";
 
 async function admin() {
@@ -29,17 +29,23 @@ async function slotsFor(duration: number, zone: string, customer: Coords, exclud
   const groups = findSlots({ jobs: list, now, duration, zone, startHour: settings.work_start_hour, endHour: settings.work_end_hour, restDays: settings.rest_days });
   return { groups, feasible: new Set(groups.flatMap((g) => g.slots.map((x) => x.start))), routeUnavailable: false };
 }
+// Hard "slot already taken" check: any active job overlapping [start, start+duration).
+// Used at submit time so a stale list can never book an impossible slot.
+async function slotTaken(db: Awaited<ReturnType<typeof admin>>, start: string, durationMin: number, excludeJobId?: string) {
+  const s = new Date(start).getTime(), e = s + durationMin * 60000;
+  let q = db.from("jobs").select("id,scheduled_at,duration_min,status").not("scheduled_at", "is", null);
+  if (excludeJobId) q = q.neq("id", excludeJobId);
+  const { data: others } = await q;
+  return (others ?? []).some((o) => jobOverlaps(o, s, e));
+}
 // Atomic guard: after inserting, if another active job overlaps, the later writer backs out.
 async function conflictAfterInsert(db: Awaited<ReturnType<typeof admin>>, id: string, start: string, duration: number) {
   const s = new Date(start).getTime(), e = s + duration * 60000;
   const { data: mine } = await db.from("jobs").select("created_at").eq("id", id).single();
   const { data: others } = await db.from("jobs").select("id,scheduled_at,duration_min,created_at,status").neq("id", id).not("scheduled_at", "is", null)
     .gte("scheduled_at", new Date(s - 8 * 3600000).toISOString()).lte("scheduled_at", new Date(e).toISOString());
-  const dead = ["cancelled", "expired", "completed", "needs_assessment", "waitlisted"];
   return (others ?? []).some((o) => {
-    if (dead.includes(o.status)) return false;
-    const os = new Date(o.scheduled_at!).getTime(), oe = os + o.duration_min * 60000;
-    if (!(s < oe && e > os)) return false;
+    if (!jobOverlaps(o, s, e)) return false;
     return o.created_at < (mine?.created_at ?? "") || (o.created_at === mine?.created_at && o.id < id);
   });
 }
@@ -139,18 +145,14 @@ export const createBooking = createServerFn({ method: "POST" })
       if (!isNaN(scheduledDate.getTime())) {
         data.slotStart = scheduledDate.toISOString();
       }
-      // Check collision with already scheduled active appointments (accepts after-hours/evening choices)
-      const s = new Date(data.slotStart).getTime();
-      const e = s + (data.duration_min ?? 60) * 60000;
-      const { data: existingJobs } = await db.from("jobs").select("id,scheduled_at,duration_min,status").not("scheduled_at", "is", null);
-      const dead = new Set(["cancelled", "expired", "completed", "needs_assessment", "waitlisted"]);
-      const hasCollision = (existingJobs ?? []).some((jobItem) => {
-        if (dead.has(jobItem.status) || !jobItem.scheduled_at) return false;
-        const js = new Date(jobItem.scheduled_at).getTime();
-        const je = js + (jobItem.duration_min || 60) * 60000;
-        return s < je && e > js;
-      });
-      if (hasCollision) {
+      // Backend revalidation: the slot must still be feasible at submit time — route-aware when the
+      // customer location is known, calendar-gap based otherwise — not only when it was first listed.
+      const customerCoords: Coords = data.lat != null && data.lng != null ? { lat: data.lat, lng: data.lng } : null;
+      const re = await slotsFor(data.duration_min ?? 60, zone, customerCoords);
+      if (!re.routeUnavailable && !re.feasible.has(data.slotStart)) {
+        throw new Error("That time is no longer available. Please choose another time.");
+      }
+      if (await slotTaken(db, data.slotStart, data.duration_min ?? 60)) {
         throw new Error("That time is already booked. Please choose another time.");
       }
     }
@@ -210,11 +212,16 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
   .inputValidator((d) => token.extend({ slotStart: z.string().datetime() }).parse(d))
   .handler(async ({ data }) => {
     const db = await admin();
-    const { data: job } = await db.from("jobs").select("id,duration_min,zone,status,lat,lng").eq("access_token", data.token).maybeSingle();
+    const { data: job } = await db.from("jobs").select("id,duration_min,zone,status,lat,lng,scheduled_at").eq("access_token", data.token).maybeSingle();
     if (!job || !["confirmed", "access_confirmed"].includes(job.status)) throw new Error("This appointment can no longer be rescheduled.");
     const r = await slotsFor(job.duration_min, job.zone, job.lat != null && job.lng != null ? { lat: job.lat, lng: job.lng } : null, job.id);
     if (!r.feasible.has(data.slotStart)) throw new Error("That time is no longer available.");
     await db.from("jobs").update({ scheduled_at: data.slotStart, status: "confirmed", access_status: null }).eq("id", job.id);
+    // Final guard against a concurrent booking that slipped in: roll back to the original time.
+    if (await slotTaken(db, data.slotStart, job.duration_min, job.id)) {
+      await db.from("jobs").update({ scheduled_at: job.scheduled_at ?? null }).eq("id", job.id);
+      throw new Error("That time was just taken. Please choose another time.");
+    }
     return { ok: true, scheduledAt: data.slotStart };
   });
 
@@ -234,8 +241,8 @@ export const respondOffer = createServerFn({ method: "POST" })
     const { db, now } = await context();
     await expireOffers(db, now);
     const { data: offer } = await db.from("offers").select("*,waitlist_entries(*)").eq("token", data.token).maybeSingle();
-    if (!offer || offer.status !== "pending") throw new Error(offer?.status === "expired" ? "This offer has expired." : "This offer is no longer available.");
-    const w = offer.waitlist_entries as unknown as { id: string; customer_name: string; phone: string; title: string; zone: string; urgency: string; value: number };
+    if (!offer || offer.status !== "pending" || !offer.waitlist_entries) throw new Error(offer?.status === "expired" ? "This offer has expired." : "This offer is no longer available.");
+    const w = offer.waitlist_entries as unknown as { id: string; customer_name: string; phone: string; email: string; title: string; zone: string; urgency: string; value: number };
     if (!data.accept) {
       await db.from("offers").update({ status: "declined" }).eq("id", offer.id);
       await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", w.id);
@@ -245,12 +252,36 @@ export const respondOffer = createServerFn({ method: "POST" })
       }
       return { status: "declined" as const, accessToken: null };
     }
+    // The freed slot must still be free: the owner may have re-booked that time after the offer went out.
+    if (await slotTaken(db, offer.slot_start, offer.duration_min)) {
+      await db.from("offers").update({ status: "expired" }).eq("id", offer.id).eq("status", "pending");
+      await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", w.id);
+      throw new Error("That time was just booked by someone else. You keep your waitlist priority.");
+    }
     const { data: claimed } = await db.from("offers").update({ status: "accepted" }).eq("id", offer.id).eq("status", "pending").select("id").maybeSingle();
     if (!claimed) throw new Error("This offer is no longer available.");
-    const { data: job } = await db.from("jobs").insert({ customer_name: w.customer_name, phone: w.phone, zone: w.zone, title: w.title, description: "Recovered from waitlist offer.", status: "confirmed", urgency: w.urgency, confidence: 100, duration_min: offer.duration_min, value: w.value, scheduled_at: offer.slot_start }).select("access_token").single();
+    const { data: job, error: jobErr } = await db.from("jobs").insert({ customer_name: w.customer_name, phone: w.phone, zone: w.zone, title: w.title, description: "Recovered from waitlist offer.", status: "confirmed", urgency: w.urgency, confidence: 100, duration_min: offer.duration_min, value: w.value, scheduled_at: offer.slot_start }).select("id,ref,access_token").single();
+    if (jobErr || !job) {
+      await db.from("offers").update({ status: "expired" }).eq("id", offer.id);
+      await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", w.id);
+      throw new Error("Could not secure the booking. Please try again.");
+    }
+    // Final race guard: if another booking slipped into the slot after the pre-check, roll the recovery back.
+    if (await slotTaken(db, offer.slot_start, offer.duration_min, job.id)) {
+      await db.from("jobs").delete().eq("id", job.id);
+      await db.from("offers").update({ status: "expired" }).eq("id", offer.id);
+      await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", w.id);
+      throw new Error("That time was just taken. You keep your waitlist priority.");
+    }
     await db.from("waitlist_entries").update({ status: "booked" }).eq("id", w.id);
     if (offer.source_job_id) await db.from("jobs").update({ status: "expired" }).eq("id", offer.source_job_id);
-    return { status: "accepted" as const, accessToken: job?.access_token ?? null };
+    if (w.email) {
+      const { sendEmail, bookingConfirmationEmail, bookingUrl } = await import("./email.server");
+      const when = new Date(offer.slot_start).toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+      const mail = bookingConfirmationEmail({ name: w.customer_name, title: w.title || "Plumbing Service", when, ref: job.ref, accessUrl: bookingUrl(job.access_token) });
+      await sendEmail(w.email, mail.subject, mail.html).catch(() => null);
+    }
+    return { status: "accepted" as const, accessToken: job.access_token };
   });
 
 export const joinWaitlist = createServerFn({ method: "POST" })
@@ -270,6 +301,12 @@ export const joinWaitlist = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { db } = await context();
+    // Waitlist candidates are offered recovered slots near them: a pinned address must be in the service area.
+    if (data.lat != null && data.lng != null) {
+      const { isInsideServiceArea, SERVICE_AREA } = await import("./location.server");
+      if (!isInsideServiceArea(data.lat, data.lng))
+        throw new Error(`This address is outside our service area (${SERVICE_AREA.name} + ${SERVICE_AREA.radiusKm} km). Please call us for options.`);
+    }
     const zone = zoneFromAddress(data.address);
     const { data: entry, error } = await db.from("waitlist_entries").insert({
       customer_name: data.name,

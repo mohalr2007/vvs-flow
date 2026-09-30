@@ -7,6 +7,14 @@ export type Slot = { start: string; travel: string; reason?: string; recommended
 // Any scheduled job blocks its time, whatever its stage — only dead statuses free the slot.
 const INACTIVE = new Set(["cancelled", "expired", "completed", "needs_assessment", "waitlisted"]);
 export const TRAVEL_BUFFER_MIN = 20;
+export const isActiveJob = (status: string) => !INACTIVE.has(status);
+
+/** Shared "slot already taken" rule: true when an active job blocks any part of [startMs, endMs). */
+export function jobOverlaps(j: { scheduled_at: string | null; duration_min: number; status: string }, startMs: number, endMs: number) {
+  if (!j.scheduled_at || !isActiveJob(j.status)) return false;
+  const s = new Date(j.scheduled_at).getTime(), e = s + j.duration_min * 60000;
+  return startMs < e && endMs > s;
+}
 
 export function findSlots(opts: { jobs: BusyJob[]; now: Date; duration: number; zone: string; startHour: number; endHour: number; days?: number; perDay?: number; restDays?: number[]; travelBufferMin?: number }) {
   const { jobs, now, duration, zone, startHour, endHour, days = 4, perDay = 48, restDays = [0, 6], travelBufferMin = TRAVEL_BUFFER_MIN } = opts;

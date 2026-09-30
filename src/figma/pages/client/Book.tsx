@@ -233,14 +233,14 @@ export default function Book() {
               You're on the list.
             </h1>
             <p style={{ color: '#6DA8C4', marginBottom: 24, fontSize: 15 }}>
-              As soon as a slot opens near you, you'll get a priority offer by email — valid 15 minutes.
+              As soon as a slot opens near you, you'll get a priority offer by email — valid 30 minutes.
             </p>
             <div style={{ background: 'rgba(7,26,46,0.75)', border: '1px solid rgba(123,97,255,0.2)', borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'left' }}>
               <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#7B61FF', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>How it works</div>
               {[
                 { icon: '1', text: 'Another customer cancels their appointment.' },
                 { icon: '2', text: 'Our system finds the best match from the waitlist — that could be you.' },
-                { icon: '3', text: 'You receive a private link valid for 15 minutes to confirm the slot.' },
+                { icon: '3', text: 'You receive a private link valid for 30 minutes to confirm the slot.' },
                 { icon: '4', text: 'One click — the slot is yours. No phone call needed.' },
               ].map(s => (
                 <div key={s.icon} className="flex items-start gap-3 mb-3">
@@ -488,7 +488,7 @@ export default function Book() {
                 <div style={{ padding: '20px 16px', borderRadius: 16, background: 'rgba(123,97,255,0.05)', border: '1px solid rgba(123,97,255,0.15)', marginBottom: 16 }}>
                   <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#7B61FF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Agenda complet</div>
                   <p style={{ fontSize: 13, color: '#6DA8C4', marginBottom: 0, lineHeight: 1.5 }}>
-                    No slots available in the next days. Join the <strong style={{ color: '#D9EEF7' }}>Priority Waitlist</strong> — you'll receive an exclusive 15-minute offer by email the moment a cancellation opens up near you.
+                    No slots available in the next days. Join the <strong style={{ color: '#D9EEF7' }}>Priority Waitlist</strong> — you'll receive an exclusive 30-minute offer by email the moment a cancellation opens up near you.
                   </p>
                 </div>
                 {!form.email ? (

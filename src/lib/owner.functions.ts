@@ -3,7 +3,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { findSlots, scoreMatch } from "./scheduling";
+import { findSlots, scoreMatch, jobOverlaps } from "./scheduling";
 import { startOfStockholmDay } from "./time";
 
 type Ctx = { supabase: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>; userId: string };
@@ -29,12 +29,31 @@ async function expireOffers(db: Ctx["supabase"], now: Date) {
   }
 }
 
+/** After (re)booking a time window, any pending offer pointing into that window is dead: cancel it and return the candidate to the waitlist. */
+export async function cancelStaleOffers(db: Ctx["supabase"], startMs: number, endMs: number) {
+  const { data: pending } = await db.from("offers").select("id,waitlist_id,slot_start,duration_min").eq("status", "pending");
+  for (const o of pending ?? []) {
+    if (jobOverlaps({ scheduled_at: o.slot_start, duration_min: o.duration_min, status: "pending" }, startMs, endMs)) {
+      await db.from("offers").update({ status: "cancelled" }).eq("id", o.id);
+      await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", o.waitlist_id);
+    }
+  }
+}
+
 /** Finds the next best waitlist candidate for a cancelled/freed slot and sends them a 30-min priority offer email.
  * Automatically excludes candidates who have already been offered this slot so Candidate #2 is picked.
  */
 export async function cascadeWaitlistOffer(db: Ctx["supabase"], jobId: string, now: Date, expiryMinutes = 30): Promise<boolean> {
   const { data: slot } = await db.from("jobs").select("zone,duration_min,scheduled_at,title").eq("id", jobId).single();
   if (!slot?.scheduled_at) return false;
+
+  // A slot the owner already re-booked (or that starts too soon to answer an offer) is no longer recoverable.
+  const startMs = new Date(slot.scheduled_at).getTime(), endMs = startMs + slot.duration_min * 60000;
+  const { data: busy } = await db.from("jobs").select("id,scheduled_at,duration_min,status").neq("id", jobId).not("scheduled_at", "is", null);
+  if ((busy ?? []).some((o) => jobOverlaps(o, startMs, endMs))) return false;
+  const msToSlot = startMs - now.getTime();
+  if (msToSlot <= 2 * 60000) return false;
+  const effectiveExpiry = Math.min(expiryMinutes, Math.max(2, Math.floor(msToSlot / 60000) - 1));
 
   // Make sure no other pending offer is already live for this slot
   const { data: existing } = await db.from("offers").select("id").eq("source_job_id", jobId).eq("status", "pending").maybeSingle();
@@ -60,13 +79,13 @@ export async function cascadeWaitlistOffer(db: Ctx["supabase"], jobId: string, n
   const bestNext = scored[0];
   if (!bestNext) return false;
 
-  // Create offer with 30-minute expiry
+  // Create offer with a 30-minute expiry (capped so it never outlives the slot itself)
   const { data: offer, error } = await db.from("offers").insert({
     waitlist_id: bestNext.entry.id,
     source_job_id: jobId,
     slot_start: slot.scheduled_at,
     duration_min: slot.duration_min,
-    expires_at: new Date(now.getTime() + expiryMinutes * 60000).toISOString(),
+    expires_at: new Date(now.getTime() + effectiveExpiry * 60000).toISOString(),
     score: bestNext.score,
     breakdown: bestNext.breakdown,
   }).select("token").single();
@@ -121,7 +140,12 @@ export const getOverview = createServerFn({ method: "POST" }).middleware([requir
   const assessment = all.filter((j) => j.status === "needs_assessment");
   const access = all.filter((j) => j.status === "confirmed" && inRange(j.scheduled_at, now, tomorrowEnd));
   const recovered = new Set((offers ?? []).filter((o) => o.status === "accepted").map((o) => o.source_job_id));
-  const openSlots = all.filter((j) => j.status === "cancelled" && j.scheduled_at && new Date(j.scheduled_at) > now && !recovered.has(j.id));
+  // Open = cancelled with a future time, not recovered, and not already re-booked by an active job.
+  const openSlots = all.filter((j) => {
+    if (j.status !== "cancelled" || !j.scheduled_at || new Date(j.scheduled_at) <= now || recovered.has(j.id)) return false;
+    const startMs = new Date(j.scheduled_at).getTime(), endMs = startMs + j.duration_min * 60000;
+    return !all.some((o) => o.id !== j.id && jobOverlaps(o, startMs, endMs));
+  });
   const brf = (projects ?? []).filter((p) => p.status === "owner_review");
   const abandoned = (leads ?? []).filter((l) => l.stage === "Abandoned");
   const revenueAtRisk = [...review, ...assessment, ...openSlots].reduce((a, j) => a + j.value, 0) + abandoned.reduce((a, l) => a + l.value, 0);
@@ -179,17 +203,22 @@ export const approveJob = createServerFn({ method: "POST" }).middleware([require
 });
 
 export const scheduleJob = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.extend({ slotStart: z.string() }).parse(d)).handler(async ({ context, data }) => {
-  const { db } = await guard(context);
+  const { db, now } = await guard(context);
   const { data: job } = await db.from("jobs").select("customer_name,email,title,ref,access_token,duration_min").eq("id", data.id).single();
   const scheduledDate = new Date(data.slotStart);
   const startIso = isNaN(scheduledDate.getTime()) ? data.slotStart : scheduledDate.toISOString();
+  // Never double-book: the slot must be free of other active appointments.
+  const startMs = new Date(startIso).getTime(), endMs = startMs + (job?.duration_min ?? 60) * 60000;
+  const { data: others } = await db.from("jobs").select("id,scheduled_at,duration_min,status").neq("id", data.id).not("scheduled_at", "is", null);
+  if ((others ?? []).some((o) => jobOverlaps(o, startMs, endMs))) throw new Error("That time is already booked. Pick another slot or free it first.");
   const { error } = await db.from("jobs").update({ scheduled_at: startIso, status: "confirmed" }).eq("id", data.id);
   if (error) throw new Error("The appointment could not be scheduled.");
+  // Any offer pointing into the freshly booked window is stale now.
+  await cancelStaleOffers(db, startMs, endMs).catch((e) => console.warn("Stale-offer cleanup failed:", e));
   // Send reminder emails based on how far the appointment is
   if (job?.email) {
     const { sendEmail, reminder24hEmail, reminder1hEmail, bookingUrl } = await import("./email.server");
     const apptTime = new Date(startIso);
-    const now = new Date();
     const msUntil = apptTime.getTime() - now.getTime();
     const hoursUntil = msUntil / 3600000;
     const when = apptTime.toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
@@ -216,7 +245,7 @@ export const setJobStatus = createServerFn({ method: "POST" }).middleware([requi
     await db.from("rot_records").insert({ customer: job.customer_name, work: job.title, labor: Math.round(job.value * 0.7), materials: Math.round(job.value * 0.3), status: "Review" });
   }
   if (data.status === "waitlisted") {
-    await db.from("waitlist_entries").insert({ customer_name: job.customer_name, phone: job.phone, title: job.title, zone: job.zone, duration_min: job.duration_min, urgency: job.urgency, value: job.value });
+    await db.from("waitlist_entries").insert({ customer_name: job.customer_name, phone: job.phone, email: job.email ?? "", title: job.title, zone: job.zone, duration_min: job.duration_min, urgency: job.urgency, value: job.value });
   }
   if (data.status === "cancelled" && job.scheduled_at && new Date(job.scheduled_at) > now) {
     // Slot freed: automatically offer it to the best waitlist match
@@ -237,14 +266,21 @@ export const getCalendar = createServerFn({ method: "POST" }).middleware([requir
 export const getWaitlist = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { db, now } = await guard(context);
   await expireOffers(db, now);
-  const [{ data: entries }, { data: slots }, { data: offers }] = await Promise.all([
+  const [{ data: entries }, { data: slots }, { data: offers }, { data: allJobs }] = await Promise.all([
     db.from("waitlist_entries").select("*").in("status", ["waiting", "offered"]).order("created_at"),
     db.from("jobs").select("id,title,zone,duration_min,scheduled_at,value").eq("status", "cancelled").gt("scheduled_at", now.toISOString()).order("scheduled_at"),
     db.from("offers").select("*,waitlist_entries(customer_name,title,email)").order("created_at", { ascending: false }).limit(20),
+    db.from("jobs").select("id,scheduled_at,duration_min,status").not("scheduled_at", "is", null),
   ]);
   const withTime = (offers ?? []).map((o) => ({ ...o, secondsLeft: Math.max(0, Math.round((new Date(o.expires_at).getTime() - now.getTime()) / 1000)) }));
   const recovered = new Set(withTime.filter((o) => o.status === "accepted").map((o) => o.source_job_id));
-  return { entries: entries ?? [], slots: (slots ?? []).filter((s) => !recovered.has(s.id)), offers: withTime };
+  // A freed slot that an active booking already occupies again must not be offered a second time.
+  const reBooked = (s: { id: string; scheduled_at: string | null; duration_min: number }) => {
+    if (!s.scheduled_at) return false;
+    const startMs = new Date(s.scheduled_at).getTime(), endMs = startMs + s.duration_min * 60000;
+    return (allJobs ?? []).some((j) => j.id !== s.id && jobOverlaps(j, startMs, endMs));
+  };
+  return { entries: entries ?? [], slots: (slots ?? []).filter((s) => !recovered.has(s.id) && !reBooked(s)), offers: withTime };
 });
 
 export const findMatches = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.parse(d)).handler(async ({ context, data }) => {
@@ -260,10 +296,16 @@ export const sendOffer = createServerFn({ method: "POST" }).middleware([requireS
   const { data: slot } = await db.from("jobs").select("zone,duration_min,scheduled_at").eq("id", data.jobId).single();
   const { data: entry } = await db.from("waitlist_entries").select("*").eq("id", data.waitlistId).eq("status", "waiting").single();
   if (!slot?.scheduled_at || !entry) throw new Error("This customer or slot is no longer available.");
+  // The slot must still be free and far enough away to answer an offer.
+  const startMs = new Date(slot.scheduled_at).getTime(), endMs = startMs + slot.duration_min * 60000;
+  const { data: busy } = await db.from("jobs").select("id,scheduled_at,duration_min,status").neq("id", data.jobId).not("scheduled_at", "is", null);
+  if ((busy ?? []).some((o) => jobOverlaps(o, startMs, endMs))) throw new Error("That slot has already been re-booked.");
+  if (startMs - now.getTime() <= 2 * 60000) throw new Error("This slot starts too soon to be offered.");
+  const effectiveExpiry = Math.min(30, Math.max(2, Math.floor((startMs - now.getTime()) / 60000) - 1));
   const { data: pending } = await db.from("offers").select("id").eq("source_job_id", data.jobId).eq("status", "pending").maybeSingle();
   if (pending) throw new Error("An offer for this slot is already waiting for an answer.");
   const { score, breakdown } = scoreMatch(entry, slot, now);
-  const { data: offer, error } = await db.from("offers").insert({ waitlist_id: entry.id, source_job_id: data.jobId, slot_start: slot.scheduled_at, duration_min: slot.duration_min, expires_at: new Date(now.getTime() + 30 * 60000).toISOString(), score, breakdown }).select("token").single();
+  const { data: offer, error } = await db.from("offers").insert({ waitlist_id: entry.id, source_job_id: data.jobId, slot_start: slot.scheduled_at, duration_min: slot.duration_min, expires_at: new Date(now.getTime() + effectiveExpiry * 60000).toISOString(), score, breakdown }).select("token").single();
   if (error) throw new Error("The offer could not be created.");
   await db.from("waitlist_entries").update({ status: "offered" }).eq("id", entry.id);
   let emailed = false;
@@ -273,7 +315,7 @@ export const sendOffer = createServerFn({ method: "POST" }).middleware([requireS
     const mail = offerEmail({ name: entry.customer_name, title: entry.title, when, offerUrl: offerUrl(offer.token) });
     emailed = (await sendEmail(entry.email, mail.subject, mail.html).catch(() => ({ sent: false }))).sent;
   }
-  return { token: offer.token, secondsLeft: 1800, emailed };
+  return { token: offer.token, secondsLeft: effectiveExpiry * 60, emailed };
 });
 
 /** Remove a waitlist entry permanently (owner action). */
@@ -281,10 +323,15 @@ export const deleteWaitlistEntry = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string() }).parse(d))
   .handler(async ({ context, data }) => {
-    const { db } = await guard(context);
+    const { db, now } = await guard(context);
     // Also cancel any pending offers for this entry
+    const { data: pending } = await db.from("offers").select("id,source_job_id").eq("waitlist_id", data.id).eq("status", "pending");
     await db.from("offers").update({ status: "cancelled" }).eq("waitlist_id", data.id).eq("status", "pending");
     await db.from("waitlist_entries").delete().eq("id", data.id);
+    // If the deleted entry held a live offer on a freed slot, hand that slot to the next candidate.
+    for (const o of pending ?? []) {
+      if (o.source_job_id) await cascadeWaitlistOffer(db, o.source_job_id, now).catch(() => null);
+    }
     return { ok: true };
   });
 
@@ -316,6 +363,11 @@ export const bookFromWaitlist = createServerFn({ method: "POST" })
     const scheduledDate = new Date(data.scheduledAt);
     const scheduledIso = isNaN(scheduledDate.getTime()) ? new Date().toISOString() : scheduledDate.toISOString();
 
+    // Never double-book: the chosen time must be free of other active appointments.
+    const startMs = scheduledDate.getTime(), endMs = startMs + (entry.duration_min || 60) * 60000;
+    const { data: others } = await db.from("jobs").select("id,scheduled_at,duration_min,status").not("scheduled_at", "is", null);
+    if ((others ?? []).some((o) => jobOverlaps(o, startMs, endMs))) throw new Error("That time is already booked. Choose another time.");
+
     const accessToken = crypto.randomUUID();
     const shortRef = "W" + Math.floor(1000 + Math.random() * 9000);
 
@@ -346,6 +398,8 @@ export const bookFromWaitlist = createServerFn({ method: "POST" })
     await db.from("waitlist_entries").update({ status: "booked" }).eq("id", data.waitlistId);
     // Cancel any pending offers for this entry
     await db.from("offers").update({ status: "cancelled" }).eq("waitlist_id", data.waitlistId).eq("status", "pending");
+    // Any other offer pointing into the freshly booked window is stale now.
+    await cancelStaleOffers(db, startMs, endMs).catch((e) => console.warn("Stale-offer cleanup failed:", e));
 
     // Send confirmation email if email present
     if (entry.email) {

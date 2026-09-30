@@ -73,14 +73,14 @@ export default function WaitlistPage() {
             </h1>
             <p style={{ color: '#6DA8C4', marginBottom: 28, fontSize: 15, lineHeight: 1.7 }}>
               A confirmation has been sent to <strong style={{ color: '#D9EEF7' }}>{form.email}</strong>.
-              As soon as a cancellation opens near you, you'll get an exclusive 15-minute priority offer.
+              As soon as a cancellation opens near you, you'll get an exclusive 30-minute priority offer.
             </p>
             <div style={{ background: 'rgba(7,26,46,0.75)', border: '1px solid rgba(123,97,255,0.2)', borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'left' }}>
               <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#7B61FF', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>How priority recovery works</div>
               {[
                 { icon: '1', text: 'Another customer cancels an appointment.' },
                 { icon: '2', text: 'Our system instantly scores every waitlist candidate — you may be the best match.' },
-                { icon: '3', text: 'You receive a private link valid for exactly 15 minutes.' },
+                { icon: '3', text: 'You receive a private link valid for exactly 30 minutes.' },
                 { icon: '4', text: 'Accept it in time — the slot is yours. No phone call needed.' },
               ].map(s => (
                 <div key={s.icon} className="flex items-start gap-3 mb-3">
@@ -120,14 +120,14 @@ export default function WaitlistPage() {
           <p style={{ color: '#6DA8C4', fontSize: 15, lineHeight: 1.7, maxWidth: 440 }}>
             Mats's schedule is often full days in advance. Register here and you'll be the
             first to know when a cancellation opens near you — with a private booking link
-            valid for 15 minutes.
+            valid for 30 minutes.
           </p>
         </div>
 
         {/* How it works banner */}
         <div className="flex gap-3 mb-8 p-4 rounded-xl animate-fade-up"
           style={{ background: 'rgba(8,145,178,0.04)', border: '1px solid rgba(8,145,178,0.12)' }}>
-          {['Cancellation detected', '→ System scores matches', '→ You get a 15-min link'].map((s, i) => (
+          {['Cancellation detected', '→ System scores matches', '→ You get a 30-min link'].map((s, i) => (
             <div key={i} className="flex-1 text-center">
               <div style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#0891B2', letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1.4 }}>{s}</div>
             </div>

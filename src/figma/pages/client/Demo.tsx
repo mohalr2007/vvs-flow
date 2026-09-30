@@ -52,7 +52,7 @@ const FLOWS = [
     color: '#F59E0B',
     badge: 'Waitlist recovery',
     title: 'Cancellation recovery',
-    desc: 'Cancelled slot triggers a scan. Best matching waitlist customer gets a 15-minute offer link. One click to send.',
+    desc: 'Cancelled slot triggers a scan. Best matching waitlist customer gets a 30-minute offer link. One click to send.',
     href: '/dashboard/waitlist',
     cta: 'See the waitlist →',
   },
@@ -212,7 +212,7 @@ export default function Demo() {
             {[
               { value: '0', unit: 'phone calls', label: 'to confirm a booking' },
               { value: '3 min', unit: '', label: 'average booking time' },
-              { value: '15 min', unit: 'offer', label: 'to fill a cancelled slot' },
+              { value: '30 min', unit: 'offer', label: 'to fill a cancelled slot' },
               { value: '100%', unit: '', label: 'of inquiries tracked' },
             ].map((stat, i) => (
               <div key={i} className="rounded-xl p-5 text-center"

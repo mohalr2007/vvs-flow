@@ -37,7 +37,7 @@ We designed the evaluation experience to be **100% friction-free** for judges an
 │    • Cancel any existing appointment in the calendar.                       │
 │    • The system automatically cascades the freed slot to the highest-       │
 │      scoring waitlisted customer.                                           │
-│    • Anti double-booking lock engages with an exact 15-minute countdown.    │
+│    • Anti double-booking lock engages with an exact 30-minute countdown.    │
 │    👉 Real offer email dispatched: "⚡ Earlier Slot Available: [Time]".     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ 4. Automated Customer Reminders                                             │
@@ -54,7 +54,7 @@ We designed the evaluation experience to be **100% friction-free** for judges an
 * **Dual-Engine Architecture:** Serverless edge dispatch supporting both **EmailJS REST API** (100% free via personal Gmail, zero custom domain DNS verification required) and direct **Resend API**.
 * **4 Full Responsive HTML Templates (in English):**
   * `bookingConfirmationEmail`: Official receipt with personal tracking portal link (`/access/:token`).
-  * `offerEmail`: 15-minute priority claim countdown window with one-click acceptance (`/offer/:token`).
+  * `offerEmail`: 30-minute priority claim countdown window with one-click acceptance (`/offer/:token`).
   * `reminder24hEmail`: 24-hour property access reminder.
   * `reminder1hEmail`: 1-hour technician arrival notice with direct dispatch contact.
 
@@ -68,7 +68,7 @@ $$\text{Score} = w_{\text{urgency}} + w_{\text{route}} + w_{\text{value}} + w_{\
 
 ### 3. Atomic Anti Double-Booking Protection
 * Slots offered to waitlist candidates are protected by database-level concurrency locks.
-* Every offer includes a strict 15-minute expiration timestamp (`expires_at`).
+* Every offer includes a strict 30-minute expiration timestamp (`expires_at`).
 * If expired or declined, the engine automatically rolls over and notifies the next best-suited customer in the queue.
 
 ---
