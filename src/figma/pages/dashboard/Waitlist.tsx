@@ -331,7 +331,7 @@ export default function Waitlist() {
     try {
       await send({ data: { jobId: slot.id, waitlistId: selected.entry.id } });
       setMatches(null); setSelected(null); refetch();
-      toast.success('15-minute offer created');
+      toast.success('30-minute priority offer created');
     } catch (e) { toast.error(errMsg(e)); }
     finally { setSending(false); }
   };
@@ -511,7 +511,7 @@ export default function Waitlist() {
                   )}
                   {selected && (
                     <button type="button" onClick={doSend} disabled={sending} className="btn-water w-full py-4 rounded-xl font-semibold mt-4">
-                      {sending ? 'Sending…' : `Send 15-min offer to ${(selected.entry.customer_name || 'Customer').trim().split(' ')[0]} →`}
+                      {sending ? 'Sending…' : `Send 30-min priority offer to ${(selected.entry.customer_name || 'Customer').trim().split(' ')[0]} →`}
                     </button>
                   )}
                 </div>
@@ -530,6 +530,30 @@ export default function Waitlist() {
                         </div>
                       </div>
                     )) : <p style={{ fontSize: 12, color: T.textMid }}>Select a match to see the score breakdown.</p>}
+                  </div>
+
+                  <div className="p-5 rounded-2xl" style={{ background: 'rgba(8,145,178,0.04)', border: '1px solid rgba(8,145,178,0.18)' }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span style={{ fontSize: 16 }}>⚡</span>
+                      <h4 style={{ fontFamily: 'Fraunces, serif', fontSize: 14, color: T.text, fontWeight: 500, margin: 0 }}>30-Min Auto-Cascade</h4>
+                    </div>
+                    <p style={{ fontSize: 11, color: T.textMid, lineHeight: 1.5, margin: 0, marginBottom: 8 }}>
+                      Candidate #1 receives an exclusive link valid for <strong>30 minutes</strong>.
+                    </p>
+                    <ul style={{ fontSize: 11, color: T.textMid, lineHeight: 1.5, margin: 0, paddingLeft: 16 }}>
+                      <li>If <strong>unconfirmed or declined</strong> after 30 min, Candidate #1 returns to the waitlist (status: <em>waiting</em>).</li>
+                      <li>The slot is <strong>automatically offered to Candidate #2</strong>, who receives an instant email notification.</li>
+                    </ul>
+                    <div className="mt-3 pt-2" style={{ borderTop: '1px solid rgba(8,145,178,0.12)' }}>
+                      <span style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#22D3EE', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ranking Order (100 pts)</span>
+                      <div className="mt-1 text-[10px] text-slate-400 space-y-0.5">
+                        <div>1. <strong>Zone proximity</strong> (up to 40 pts)</div>
+                        <div>2. <strong>Duration fit</strong> (+30 pts, must fit)</div>
+                        <div>3. <strong>Availability flexibility</strong> (up to 15 pts)</div>
+                        <div>4. <strong>Seniority</strong> (+1 pt/day waiting, up to 5 pts)</div>
+                        <div>5. <strong>Urgency</strong> (up to 2 pts)</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

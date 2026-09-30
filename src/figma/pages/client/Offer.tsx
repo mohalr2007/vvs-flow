@@ -70,7 +70,7 @@ export default function Offer() {
   const when = `${fmtDay(offer.slot_start)} · ${fmtRange(offer.slot_start, offer.duration_min)}`;
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
-  const progress = seconds / (15 * 60);
+  const progress = seconds / (30 * 60);
   const circumference = 2 * Math.PI * 54;
   const title = offer.status === 'accepted' ? 'This time is yours.' : offer.status === 'pending' ? 'A time just opened for you.' : offer.status === 'expired' ? 'This offer has expired.' : 'Offer declined.';
 

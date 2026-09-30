@@ -44,10 +44,14 @@ async function conflictAfterInsert(db: Awaited<ReturnType<typeof admin>>, id: st
   });
 }
 async function expireOffers(db: Awaited<ReturnType<typeof admin>>, now: Date) {
-  const { data } = await db.from("offers").select("id,waitlist_id").eq("status", "pending").lt("expires_at", now.toISOString());
+  const { data } = await db.from("offers").select("id,waitlist_id,source_job_id").eq("status", "pending").lt("expires_at", now.toISOString());
   for (const o of data ?? []) {
     await db.from("offers").update({ status: "expired" }).eq("id", o.id);
     await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", o.waitlist_id);
+    if (o.source_job_id) {
+      const { cascadeWaitlistOffer } = await import("./owner.functions");
+      await cascadeWaitlistOffer(db, o.source_job_id, now, 30).catch((e) => console.warn("Cascade failed:", e));
+    }
   }
 }
 
@@ -235,6 +239,10 @@ export const respondOffer = createServerFn({ method: "POST" })
     if (!data.accept) {
       await db.from("offers").update({ status: "declined" }).eq("id", offer.id);
       await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", w.id);
+      if (offer.source_job_id) {
+        const { cascadeWaitlistOffer } = await import("./owner.functions");
+        await cascadeWaitlistOffer(db, offer.source_job_id, now, 30).catch((e) => console.warn("Cascade failed:", e));
+      }
       return { status: "declined" as const, accessToken: null };
     }
     const { data: claimed } = await db.from("offers").update({ status: "accepted" }).eq("id", offer.id).eq("status", "pending").select("id").maybeSingle();
@@ -292,7 +300,7 @@ export const joinWaitlist = createServerFn({ method: "POST" })
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0; font-size: 13px; color: #475569;">
           <strong>⚡ How priority recovery works:</strong>
           <p style="margin: 6px 0 0 0; line-height: 1.5;">
-            Whenever another customer cancels or reschedules on Mats's route near you, our system instantly selects the best match and sends an exclusive <strong>15-minute priority booking link</strong> straight to your email.
+            Whenever another customer cancels or reschedules on Mats's route near you, our system instantly selects the best match and sends an exclusive <strong>30-minute priority booking link</strong> straight to your email.
           </p>
         </div>
       `;

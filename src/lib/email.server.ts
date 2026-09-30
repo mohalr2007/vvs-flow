@@ -371,7 +371,7 @@ export function offerEmail(p: {
     </div>
 
     <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0; font-size: 13px; color: #92400e;">
-      ⏱ <strong>You have 15 minutes</strong> to claim this slot. To prevent double-booking and keep schedules fair, if you don't accept in time, this slot will automatically roll over to the next customer on the waitlist.
+      ⏱ <strong>You have 30 minutes</strong> to claim this slot. To prevent double-booking and keep schedules fair, if you don't accept in time, this slot will automatically roll over to the next customer on the waitlist, while you remain on the waitlist for future openings.
     </div>
 
     ${button(p.offerUrl, "Claim This Slot Now")}
@@ -383,7 +383,7 @@ export function offerEmail(p: {
 
   return {
     subject: `⚡ Earlier Slot Available: ${p.when} — Ekström VVS`,
-    html: layout("An Earlier Slot Has Opened For You", content, "15-Minute Priority Window"),
+    html: layout("An Earlier Slot Has Opened For You", content, "30-Minute Priority Window"),
   };
 }
 

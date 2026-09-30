@@ -20,45 +20,68 @@ async function expireOffers(db: Ctx["supabase"], now: Date) {
   const { data } = await db.from("offers").select("id,waitlist_id,source_job_id").eq("status", "pending").lt("expires_at", now.toISOString());
   for (const o of data ?? []) {
     await db.from("offers").update({ status: "expired" }).eq("id", o.id);
+    // Candidate #1 returns safely to the waitlist (status: waiting)
     await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", o.waitlist_id);
-    // Auto-cascade: propose the slot to the next best match in the waitlist
+    // Auto-cascade: automatically propose the slot to the NEXT best match in the waitlist (Candidate #2)
     if (o.source_job_id) {
-      await cascadeWaitlistOffer(db, o.source_job_id, now).catch((e) => console.warn("Cascade after expiry failed:", e));
+      await cascadeWaitlistOffer(db, o.source_job_id, now, 30).catch((e) => console.warn("Cascade after expiry failed:", e));
     }
   }
 }
 
-/** Finds the next best waitlist candidate for a cancelled/freed slot and sends them an offer email. */
-async function cascadeWaitlistOffer(db: Ctx["supabase"], jobId: string, now: Date): Promise<boolean> {
+/** Finds the next best waitlist candidate for a cancelled/freed slot and sends them a 30-min priority offer email.
+ * Automatically excludes candidates who have already been offered this slot so Candidate #2 is picked.
+ */
+export async function cascadeWaitlistOffer(db: Ctx["supabase"], jobId: string, now: Date, expiryMinutes = 30): Promise<boolean> {
   const { data: slot } = await db.from("jobs").select("zone,duration_min,scheduled_at,title").eq("id", jobId).single();
   if (!slot?.scheduled_at) return false;
+
   // Make sure no other pending offer is already live for this slot
   const { data: existing } = await db.from("offers").select("id").eq("source_job_id", jobId).eq("status", "pending").maybeSingle();
   if (existing) return false;
-  // Find all waiting entries
+
+  // Find all candidate IDs who have already been offered this slot (so we cascade to the NEXT candidate)
+  const { data: pastOffers } = await db.from("offers").select("waitlist_id").eq("source_job_id", jobId);
+  const alreadyOfferedIds = new Set((pastOffers ?? []).map((o) => o.waitlist_id));
+
+  // Find all waiting entries that haven't been offered this specific slot yet
   const { data: entries } = await db.from("waitlist_entries").select("*").eq("status", "waiting");
   if (!entries || entries.length === 0) return false;
+
+  const remainingCandidates = entries.filter((e) => !alreadyOfferedIds.has(e.id));
+  if (remainingCandidates.length === 0) return false;
+
   const { scoreMatch } = await import("./scheduling");
-  const scored = entries.map((e) => ({ entry: e, ...scoreMatch(e, slot, now) })).sort((a, b) => b.score - a.score);
-  const best = scored[0];
-  if (!best) return false;
-  // Create offer with 15-minute expiry
+  const scored = remainingCandidates
+    .map((e) => ({ entry: e, ...scoreMatch(e, slot, now) }))
+    .filter((m) => m.eligible) // must fit inside slot duration
+    .sort((a, b) => b.score - a.score);
+
+  const bestNext = scored[0];
+  if (!bestNext) return false;
+
+  // Create offer with 30-minute expiry
   const { data: offer, error } = await db.from("offers").insert({
-    waitlist_id: best.entry.id,
+    waitlist_id: bestNext.entry.id,
     source_job_id: jobId,
     slot_start: slot.scheduled_at,
     duration_min: slot.duration_min,
-    expires_at: new Date(now.getTime() + 15 * 60000).toISOString(),
-    score: best.score,
-    breakdown: best.breakdown,
+    expires_at: new Date(now.getTime() + expiryMinutes * 60000).toISOString(),
+    score: bestNext.score,
+    breakdown: bestNext.breakdown,
   }).select("token").single();
-  if (error) return false;
-  await db.from("waitlist_entries").update({ status: "offered" }).eq("id", best.entry.id);
-  if (best.entry.email) {
+
+  if (error || !offer) return false;
+
+  // Mark this candidate as offered
+  await db.from("waitlist_entries").update({ status: "offered" }).eq("id", bestNext.entry.id);
+
+  // Send priority email notification to candidate #2
+  if (bestNext.entry.email) {
     const { sendEmail, offerEmail, offerUrl } = await import("./email.server");
     const when = new Date(slot.scheduled_at).toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-    const mail = offerEmail({ name: best.entry.customer_name, title: best.entry.title, when, offerUrl: offerUrl(offer.token) });
-    await sendEmail(best.entry.email, mail.subject, mail.html).catch(() => null);
+    const mail = offerEmail({ name: bestNext.entry.customer_name, title: bestNext.entry.title || "Plumbing Service", when, offerUrl: offerUrl(offer.token) });
+    await sendEmail(bestNext.entry.email, mail.subject, mail.html).catch(() => null);
   }
   return true;
 }
@@ -240,7 +263,7 @@ export const sendOffer = createServerFn({ method: "POST" }).middleware([requireS
   const { data: pending } = await db.from("offers").select("id").eq("source_job_id", data.jobId).eq("status", "pending").maybeSingle();
   if (pending) throw new Error("An offer for this slot is already waiting for an answer.");
   const { score, breakdown } = scoreMatch(entry, slot, now);
-  const { data: offer, error } = await db.from("offers").insert({ waitlist_id: entry.id, source_job_id: data.jobId, slot_start: slot.scheduled_at, duration_min: slot.duration_min, expires_at: new Date(now.getTime() + 15 * 60000).toISOString(), score, breakdown }).select("token").single();
+  const { data: offer, error } = await db.from("offers").insert({ waitlist_id: entry.id, source_job_id: data.jobId, slot_start: slot.scheduled_at, duration_min: slot.duration_min, expires_at: new Date(now.getTime() + 30 * 60000).toISOString(), score, breakdown }).select("token").single();
   if (error) throw new Error("The offer could not be created.");
   await db.from("waitlist_entries").update({ status: "offered" }).eq("id", entry.id);
   let emailed = false;
@@ -250,7 +273,7 @@ export const sendOffer = createServerFn({ method: "POST" }).middleware([requireS
     const mail = offerEmail({ name: entry.customer_name, title: entry.title, when, offerUrl: offerUrl(offer.token) });
     emailed = (await sendEmail(entry.email, mail.subject, mail.html).catch(() => ({ sent: false }))).sent;
   }
-  return { token: offer.token, secondsLeft: 900, emailed };
+  return { token: offer.token, secondsLeft: 1800, emailed };
 });
 
 /** Remove a waitlist entry permanently (owner action). */
