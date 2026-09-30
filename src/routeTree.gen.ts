@@ -15,6 +15,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as EmergencyRouteImport } from './routes/emergency'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as WaitlistRouteImport } from './routes/waitlist'
 import { Route as AccessTokenRouteImport } from './routes/access.$token'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardCalendarRouteImport } from './routes/dashboard.calendar'
@@ -58,6 +59,11 @@ const EmergencyRoute = EmergencyRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WaitlistRoute = WaitlistRouteImport.update({
+  id: '/waitlist',
+  path: '/waitlist',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccessTokenRoute = AccessTokenRouteImport.update({
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/demo': typeof DemoRoute
   '/emergency': typeof EmergencyRoute
   '/login': typeof LoginRoute
+  '/waitlist': typeof WaitlistRoute
   '/access/$token': typeof AccessTokenRoute
   '/dashboard/calendar': typeof DashboardCalendarRoute
   '/dashboard/inbox': typeof DashboardInboxRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/demo': typeof DemoRoute
   '/emergency': typeof EmergencyRoute
   '/login': typeof LoginRoute
+  '/waitlist': typeof WaitlistRoute
   '/access/$token': typeof AccessTokenRoute
   '/dashboard/calendar': typeof DashboardCalendarRoute
   '/dashboard/inbox': typeof DashboardInboxRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/demo': typeof DemoRoute
   '/emergency': typeof EmergencyRoute
   '/login': typeof LoginRoute
+  '/waitlist': typeof WaitlistRoute
   '/access/$token': typeof AccessTokenRoute
   '/dashboard/calendar': typeof DashboardCalendarRoute
   '/dashboard/inbox': typeof DashboardInboxRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/emergency'
     | '/login'
+    | '/waitlist'
     | '/access/$token'
     | '/dashboard/calendar'
     | '/dashboard/inbox'
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/emergency'
     | '/login'
+    | '/waitlist'
     | '/access/$token'
     | '/dashboard/calendar'
     | '/dashboard/inbox'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/emergency'
     | '/login'
+    | '/waitlist'
     | '/access/$token'
     | '/dashboard/calendar'
     | '/dashboard/inbox'
@@ -273,6 +285,7 @@ export interface RootRouteChildren {
   DemoRoute: typeof DemoRoute
   EmergencyRoute: typeof EmergencyRoute
   LoginRoute: typeof LoginRoute
+  WaitlistRoute: typeof WaitlistRoute
   AccessTokenRoute: typeof AccessTokenRoute
   OfferTokenRoute: typeof OfferTokenRoute
   RescheduleTokenRoute: typeof RescheduleTokenRoute
@@ -320,6 +333,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/waitlist': {
+      id: '/waitlist'
+      path: '/waitlist'
+      fullPath: '/waitlist'
+      preLoaderRoute: typeof WaitlistRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/access/$token': {
@@ -462,6 +482,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoRoute: DemoRoute,
   EmergencyRoute: EmergencyRoute,
   LoginRoute: LoginRoute,
+  WaitlistRoute: WaitlistRoute,
   AccessTokenRoute: AccessTokenRoute,
   OfferTokenRoute: OfferTokenRoute,
   RescheduleTokenRoute: RescheduleTokenRoute,
