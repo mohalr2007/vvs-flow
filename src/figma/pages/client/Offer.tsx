@@ -4,10 +4,12 @@ import { useServerFn } from '@tanstack/react-start';
 import { toast } from 'sonner';
 import { Link, useParams } from '@/figma/router';
 import ClientNav from '@/figma/components/ClientNav';
+import { LocationPicker, type PickedLocation } from '@/figma/components/LocationPicker';
 import { offerService } from '@/lib/services';
 import { fmtDay, fmtRange, fmtTime } from '@/lib/time';
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Nothing has been changed.');
+const EMPTY_LOC: PickedLocation = { address: '', lat: null, lng: null, inside: null, driveMinutes: null };
 
 export default function Offer() {
   const { token } = useParams<{ token: string }>();
@@ -18,6 +20,8 @@ export default function Offer() {
   const [error, setError] = useState('');
   const [bookingToken, setBookingToken] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
+  const [loc, setLoc] = useState<PickedLocation>(EMPTY_LOC);
+  const addressReady = loc.address.trim().length >= 4 && loc.inside !== false;
 
   const refresh = useCallback(() => { qc.invalidateQueries({ queryKey: ['offer', token] }); }, [qc, token]);
 
@@ -38,9 +42,10 @@ export default function Offer() {
   }, [q.data?.offer?.status, refresh]);
 
   const act = async (accept: boolean) => {
+    if (accept && !addressReady) { setError('Please add your address so Mats knows where to go.'); return; }
     setBusy(true); setError('');
     try {
-      const r = await respond({ data: { token: token!, accept } });
+      const r = await respond({ data: { token: token!, accept, address: loc.address.trim(), lat: loc.lat, lng: loc.lng } });
       setBookingToken(r.accessToken);
       refresh();
     } catch (e) { setError(errMsg(e)); toast.error(errMsg(e)); refresh(); } finally { setBusy(false); }
@@ -173,9 +178,18 @@ export default function Offer() {
 
       {error && <p style={{ fontSize: 13, color: '#EF5350', textAlign: 'center', marginBottom: 16 }}>{error}</p>}
 
+      <div className="rounded-2xl p-5 mb-6" style={{ background: 'rgba(15,22,32,0.8)', border: '1px solid rgba(8,145,178,0.18)' }}>
+        <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#0891B2', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Where do you need Mats?</div>
+        <p style={{ fontSize: 13, color: '#6DA8C4', marginBottom: 12, lineHeight: 1.5 }}>Add your address so the booking carries it — Mats will see exactly where to go.</p>
+        <LocationPicker value={loc} onChange={setLoc} />
+        {loc.inside === false && (
+          <p style={{ fontSize: 12, color: '#F59E0B', marginTop: 8 }}>This address is outside the service area (Västerås + 40 km) — the slot can't be booked for it.</p>
+        )}
+      </div>
+
       <div className="flex flex-col gap-3">
-        <button onClick={() => act(true)} disabled={busy} className="btn-copper w-full py-5 rounded-xl text-lg font-bold" style={{ opacity: busy ? 0.6 : 1 }}>
-          {busy ? 'Confirming…' : 'Accept this time →'}
+        <button onClick={() => act(true)} disabled={busy || !addressReady} className="btn-copper w-full py-5 rounded-xl text-lg font-bold" style={{ opacity: busy || !addressReady ? 0.5 : 1 }}>
+          {busy ? 'Confirming…' : addressReady ? 'Accept this time →' : 'Add your address to accept →'}
         </button>
         <button onClick={() => act(false)} disabled={busy} className="btn-ghost w-full py-3 rounded-xl font-semibold text-sm" style={{ color: '#6DA8C4' }}>
           Decline — keep me on the waitlist

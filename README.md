@@ -40,9 +40,9 @@ We designed the evaluation experience to be **100% friction-free** for judges an
 │    • Anti double-booking lock engages with an exact 30-minute countdown.    │
 │    👉 Real offer email dispatched: "⚡ Earlier Slot Available: [Time]".     │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ 4. Automated Customer Reminders                                             │
-│    • T-24h reminder: Property access checklist & arrival confirmation.      │
-│    • T-1h reminder: Real-time technician dispatch arrival alert.            │
+│ 4. Customer Reminders — zero phone calls                                    │
+│    • Booking ≥24h out: access checklist reminder sent with confirmation.    │
+│    • Same-day booking (<2h): technician dispatch arrival notice.            │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -70,6 +70,7 @@ $$\text{Score} = w_{\text{urgency}} + w_{\text{route}} + w_{\text{value}} + w_{\
 * Slots offered to waitlist candidates are protected by database-level concurrency locks.
 * Every offer includes a strict 30-minute expiration timestamp (`expires_at`).
 * If expired or declined, the engine automatically rolls over and notifies the next best-suited customer in the queue.
+* Expiry is evaluated on every page read — no cron jobs: the offer page itself refreshes the moment its countdown hits zero, and the owner dashboard re-checks on every open, so the rollover runs without any owner action.
 
 ---
 

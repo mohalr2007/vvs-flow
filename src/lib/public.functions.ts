@@ -252,7 +252,7 @@ export const getOffer = createServerFn({ method: "POST" })
   });
 
 export const respondOffer = createServerFn({ method: "POST" })
-  .inputValidator((d) => token.extend({ accept: z.boolean() }).parse(d))
+  .inputValidator((d) => token.extend({ accept: z.boolean(), address: z.string().trim().max(200).optional(), lat: z.number().min(-90).max(90).nullable().optional(), lng: z.number().min(-180).max(180).nullable().optional() }).parse(d))
   .handler(async ({ data }) => {
     const { db, now } = await context();
     await expireOffers(db, now);
@@ -268,6 +268,15 @@ export const respondOffer = createServerFn({ method: "POST" })
       }
       return { status: "declined" as const, accessToken: null };
     }
+    // Mats needs to know exactly where to go: the recovered booking must carry an address.
+    const address = (data.address ?? "").trim();
+    if (address.length < 4) throw new Error("Please add your address so Mats knows where to go.");
+    const coords = await resolveCoords(data.lat, data.lng, address);
+    if (coords) {
+      const { isInsideServiceArea, SERVICE_AREA } = await import("./location.server");
+      if (!isInsideServiceArea(coords.lat, coords.lng))
+        throw new Error(`This address is outside our service area (${SERVICE_AREA.name} + ${SERVICE_AREA.radiusKm} km). Please call us for options.`);
+    }
     // The freed slot must still be free: the owner may have re-booked that time after the offer went out.
     if (await slotTaken(db, offer.slot_start, offer.duration_min)) {
       await db.from("offers").update({ status: "expired" }).eq("id", offer.id).eq("status", "pending");
@@ -282,7 +291,7 @@ export const respondOffer = createServerFn({ method: "POST" })
       customer_name: w.customer_name, phone: w.phone, email: w.email || "", title: w.title || "Plumbing request",
       description: "Recovered from waitlist offer.", status: "confirmed" as const, urgency: w.urgency || "Normal",
       confidence: 100, duration_min: offer.duration_min, value: w.value || 0, zone: w.zone || "",
-      address: "", lat: null, lng: null, photo_path: null, access_status: null, missing_fields: [] as string[],
+      address, lat: coords?.lat ?? null, lng: coords?.lng ?? null, photo_path: null, access_status: null, missing_fields: [] as string[],
       is_emergency: false, access_token: crypto.randomUUID().replaceAll("-", ""),
     };
     const recoveryFields = Object.keys(recovery).join(",");
