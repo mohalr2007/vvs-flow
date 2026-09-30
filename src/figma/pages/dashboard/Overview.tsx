@@ -51,6 +51,14 @@ export default function Overview() {
   const fetchOverview = useServerFn(ownerService.overview);
   const advance = useServerFn(ownerService.advance);
   const q = useQuery({ queryKey: ['overview'], queryFn: () => fetchOverview(), refetchInterval: 30000 });
+  // Hooks stay above any early return: this banner state must exist on every render.
+  const [bannerDismissed, setBannerDismissed] = useState(() => {
+    try { return localStorage.getItem('vvs-demo-banner') === 'dismissed'; } catch { return false; }
+  });
+  const dismissBanner = () => {
+    try { localStorage.setItem('vvs-demo-banner', 'dismissed'); } catch {}
+    setBannerDismissed(true);
+  };
 
   const advanceClock = async (minutes: 15 | 1440) => {
     try {
@@ -100,14 +108,6 @@ export default function Overview() {
     .map(j => ({ key: j.id, time: fmtTime(j.scheduled_at!), title: j.title, customer: `${j.customer_name} · Zone ${j.zone}`, tone: statusTone(j.status), at: new Date(j.scheduled_at!).getTime() }))
     .concat([{ key: 'now', time: fmtTime(d.now), title: '', customer: '', tone: '', current: true, at: nowMs } as never])
     .sort((a, b) => (a as unknown as { at: number }).at - (b as unknown as { at: number }).at);
-
-  const [bannerDismissed, setBannerDismissed] = useState(() => {
-    try { return localStorage.getItem('vvs-demo-banner') === 'dismissed'; } catch { return false; }
-  });
-  const dismissBanner = () => {
-    try { localStorage.setItem('vvs-demo-banner', 'dismissed'); } catch {}
-    setBannerDismissed(true);
-  };
 
   return (
     <DashboardLayout>
