@@ -9,7 +9,7 @@
 |---|---|
 | **Projet** | VVS Flow — Autonomous Dispatch & Priority Waitlist Platform |
 | **Client fictif** | Ekström VVS AB — plombier solo, Västerås, Suède (Mats Ekström, est. 1994) |
-| **App en ligne** | https://id-preview--b9506bcd-256a-4188-834f-9981db88d72f.lovable.app — ⚠️ **utiliser le lien Lovable *publié* du projet** : un lien `id-preview` exige une connexion Lovable et n'est pas public |
+| **App en ligne (publique)** | https://b9506bcd-256a-4188-834f-9981db88d72f.lovableproject.com — s'ouvre sans compte ; les liens `id-preview--…lovable.app` sont des previews Lovable qui exigent une connexion et ne doivent pas être partagés |
 | **Repo GitHub (public)** | https://github.com/mohalr2007/vvs-flow.git |
 | **Connexion jury** | Ouvrir `/login` → bouton **« ✦ Accès Jury & Démo — Sans mot de passe »** → connexion instantanée au dashboard owner complet (compte démo provisionné automatiquement : `mats.demo@vvsflow.local`, rôle owner) |
 | **Visite guidée** | `/demo` — scénarios guidés + le brief client + les stats d'impact |

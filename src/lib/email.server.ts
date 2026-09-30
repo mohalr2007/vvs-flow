@@ -15,7 +15,7 @@ export function getAppUrl(): string {
   if (vercelUrl) {
     return `https://${vercelUrl.replace(/\/$/, "")}`;
   }
-  return "https://id-preview--b9506bcd-256a-4188-834f-9981db88d72f.lovable.app";
+  return "https://b9506bcd-256a-4188-834f-9981db88d72f.lovableproject.com";
 }
 
 export function getFromEmail(): string {
