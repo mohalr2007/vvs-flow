@@ -42,20 +42,20 @@ export async function cascadeWaitlistOffer(db: Ctx["supabase"], jobId: string, n
 
   // Find all candidate IDs who have already been offered this slot (so we cascade to the NEXT candidate)
   const { data: pastOffers } = await db.from("offers").select("waitlist_id").eq("source_job_id", jobId);
-  const alreadyOfferedIds = new Set((pastOffers ?? []).map((o) => o.waitlist_id));
+  const alreadyOfferedIds = new Set(((pastOffers ?? []) as { waitlist_id: string }[]).map((o) => o.waitlist_id));
 
   // Find all waiting entries that haven't been offered this specific slot yet
   const { data: entries } = await db.from("waitlist_entries").select("*").eq("status", "waiting");
   if (!entries || entries.length === 0) return false;
 
-  const remainingCandidates = entries.filter((e) => !alreadyOfferedIds.has(e.id));
+  const remainingCandidates = (entries as any[]).filter((e) => !alreadyOfferedIds.has(e.id));
   if (remainingCandidates.length === 0) return false;
 
   const { scoreMatch } = await import("./scheduling");
   const scored = remainingCandidates
     .map((e) => ({ entry: e, ...scoreMatch(e, slot, now) }))
-    .filter((m) => m.eligible) // must fit inside slot duration
-    .sort((a, b) => b.score - a.score);
+    .filter((m: { eligible: boolean }) => m.eligible) // must fit inside slot duration
+    .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
 
   const bestNext = scored[0];
   if (!bestNext) return false;
@@ -597,7 +597,7 @@ export const demoOwnerLogin = createServerFn({ method: "POST" }).handler(async (
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      let user = list?.users.find((u) => u.email === DEMO_EMAIL);
+      let user = list?.users.find((u: { email?: string }) => u.email === DEMO_EMAIL);
       if (!user) {
         const { data, error } = await supabaseAdmin.auth.admin.createUser({
           email: DEMO_EMAIL,
