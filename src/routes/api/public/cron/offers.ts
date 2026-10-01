@@ -6,10 +6,10 @@ export const Route = createFileRoute("/api/public/cron/offers")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { authenticateCronRequest } = await import("@/integrations/supabase/cron-auth");
-        const denied = await authenticateCronRequest(request);
-        if (denied) return denied;
         const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
+        const provided = request.headers.get("x-cron-key") ?? "";
+        const { data: k } = await (db as any).from("internal_cron_key").select("key").eq("id", 1).maybeSingle();
+        if (!k?.key || provided.length !== k.key.length || provided !== k.key) return new Response("Unauthorized", { status: 401 });
         const { cascadeWaitlistOffer } = await import("@/lib/owner.functions");
         const { data: s } = await db.from("settings").select("clock_offset_minutes").eq("id", 1).maybeSingle();
         const now = new Date(Date.now() + (s?.clock_offset_minutes ?? 0) * 60000);
