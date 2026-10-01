@@ -322,13 +322,19 @@ export const getWaitlist = createServerFn({ method: "POST" }).middleware([requir
   ]);
   const withTime = (offers ?? []).map((o) => ({ ...o, secondsLeft: Math.max(0, Math.round((new Date(o.expires_at).getTime() - now.getTime()) / 1000)) }));
   const recovered = new Set(withTime.filter((o) => o.status === "accepted").map((o) => o.source_job_id));
+  // Most recent offer per entry (offers are newest-first): lets the UI surface
+  // "awaiting confirmation" / "didn't confirm" instead of a neutral waiting state.
+  const lastOfferStatus = new Map<string, string>();
+  for (const o of withTime) {
+    if (o.waitlist_id && !lastOfferStatus.has(o.waitlist_id)) lastOfferStatus.set(o.waitlist_id, o.status);
+  }
   // A freed slot that an active booking already occupies again must not be offered a second time.
   const reBooked = (s: { id: string; scheduled_at: string | null; duration_min: number }) => {
     if (!s.scheduled_at) return false;
     const startMs = new Date(s.scheduled_at).getTime(), endMs = startMs + s.duration_min * 60000;
     return (allJobs ?? []).some((j) => j.id !== s.id && jobOverlaps(j, startMs, endMs));
   };
-  return { entries: entries ?? [], slots: (slots ?? []).filter((s) => !recovered.has(s.id) && !reBooked(s)), offers: withTime };
+  return { entries: (entries ?? []).map((e) => ({ ...e, lastOfferStatus: lastOfferStatus.get(e.id) ?? null })), slots: (slots ?? []).filter((s) => !recovered.has(s.id) && !reBooked(s)), offers: withTime };
 });
 
 export const findMatches = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => id.parse(d)).handler(async ({ context, data }) => {

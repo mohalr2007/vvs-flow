@@ -57,6 +57,13 @@
       "when": 1790828720052,
       "tag": "0007_schedule_offer_cascade",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790915400000,
+      "tag": "0008_waitlist_cron_public_url",
+      "breakpoints": true
     }
   ]
 }

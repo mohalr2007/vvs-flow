@@ -19,19 +19,28 @@ function UrgencyBadge({ v }: { v?: string | null }) {
   return <span style={{ fontFamily: 'JetBrains Mono', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 10, background: cfg.bg, color: cfg.c, border: `1px solid ${cfg.b}` }}>{safe}</span>;
 }
 
-function StatusBadge({ v }: { v?: string | null }) {
+function StatusBadge({ v, lastOfferStatus }: { v?: string | null; lastOfferStatus?: string | null | undefined }) {
   const safe = v || 'waiting';
+  // Waiting entries surface the outcome of their last proposal instead of a neutral state.
+  const display = safe === 'offered' ? 'awaiting confirmation'
+    : safe === 'waiting' && lastOfferStatus === 'expired' ? "didn't confirm"
+    : safe === 'waiting' && lastOfferStatus === 'declined' ? 'declined'
+    : safe;
   const cfg = safe === 'offered' ? { bg: 'rgba(8,145,178,0.1)', c: '#0891B2', b: 'rgba(8,145,178,0.2)' }
     : safe === 'booked' ? { bg: 'rgba(34,197,94,0.1)', c: '#4ADE80', b: 'rgba(34,197,94,0.2)' }
+    : display === "didn't confirm" ? { bg: 'rgba(239,68,68,0.1)', c: '#F87171', b: 'rgba(239,68,68,0.2)' }
+    : display === 'declined' ? { bg: 'rgba(245,158,11,0.1)', c: '#FBBF24', b: 'rgba(245,158,11,0.2)' }
     : { bg: 'rgba(123,97,255,0.1)', c: '#7B61FF', b: 'rgba(123,97,255,0.2)' };
-  return <span style={{ fontFamily: 'JetBrains Mono', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 10, background: cfg.bg, color: cfg.c, border: `1px solid ${cfg.b}` }}>{safe}</span>;
+  return <span style={{ fontFamily: 'JetBrains Mono', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 10, background: cfg.bg, color: cfg.c, border: `1px solid ${cfg.b}` }}>{display}</span>;
 }
 
+type EntryWithOffer = WaitlistEntry & { lastOfferStatus?: string | null | undefined };
+
 function WaitlistCard({ entry, T, onDelete, onBook }: {
-  entry: WaitlistEntry;
+  entry: EntryWithOffer;
   T: ThemeTokens;
   onDelete: (id: string) => void;
-  onBook: (entry: WaitlistEntry) => void;
+  onBook: (entry: EntryWithOffer) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -75,7 +84,7 @@ function WaitlistCard({ entry, T, onDelete, onBook }: {
             <div className="flex items-center gap-2 flex-wrap">
               <span style={{ fontFamily: 'Fraunces, serif', fontSize: 15, fontWeight: 400, color: T.text }}>{name}</span>
               <UrgencyBadge v={entry.urgency} />
-              <StatusBadge v={entry.status} />
+              <StatusBadge v={entry.status} lastOfferStatus={entry.lastOfferStatus} />
             </div>
             <div style={{ fontSize: 12, color: T.textMid, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.title || 'Plumbing request'}</div>
           </div>
@@ -296,7 +305,7 @@ export default function Waitlist() {
   );
 
   const d = q.data;
-  const entriesList = d.entries ?? [];
+  const entriesList = (d.entries ?? []) as EntryWithOffer[];
   const slotsList = d.slots ?? [];
   const offersList = d.offers ?? [];
 
