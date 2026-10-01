@@ -450,15 +450,21 @@ export const bookFromWaitlist = createServerFn({ method: "POST" })
 
     await db.from("waitlist_entries").update({ status: "offered" }).eq("id", data.waitlistId);
 
+    let emailed = false, emailReason: string | null = null;
+    const { offerUrl, sendEmail, offerEmail } = await import("./email.server");
     if (entry.email) {
-      const { sendEmail, offerEmail, offerUrl } = await import("./email.server");
       const when = scheduledDate.toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
       const deadline = new Date(now.getTime() + effectiveExpiry * 60000).toLocaleTimeString("en-GB", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit" });
       const mail = offerEmail({ name: entry.customer_name, title: entry.title || "Plumbing Service", when, offerUrl: offerUrl(offer.token), minutes: effectiveExpiry, deadline });
       const r = await sendEmail(entry.email, mail.subject, mail.html).catch((e) => ({ sent: false, reason: String(e) }));
-      if (!r.sent) console.error("Direct-booking proposal email failed:", entry.email, r.reason);
+      emailed = r.sent;
+      if (!r.sent) {
+        emailReason = r.reason || "unknown error";
+        console.error("Direct-booking proposal email failed:", entry.email, r.reason);
+      }
+      return { ok: true, token: offer.token, secondsLeft: effectiveExpiry * 60, emailed, emailReason, link: offerUrl(offer.token) };
     }
-    return { ok: true, token: offer.token, secondsLeft: effectiveExpiry * 60 };
+    return { ok: true, token: offer.token, secondsLeft: effectiveExpiry * 60, emailed: false, emailReason: "The candidate has no email address on file.", link: offerUrl(offer.token) };
   });
 
 

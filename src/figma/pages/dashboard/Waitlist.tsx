@@ -161,6 +161,8 @@ function BookModal({ entry, T, onClose, onDone }: {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState('18:00');
   const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof bookFn>> | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handle = async () => {
     if (!date) {
@@ -173,15 +175,53 @@ function BookModal({ entry, T, onClose, onDone }: {
       if (isNaN(dt.getTime())) {
         throw new Error('Invalid date or time');
       }
-      await bookFn({ data: { waitlistId: entry.id, scheduledAt: dt.toISOString() } });
-      toast.success(`Proposal sent to ${entry.customer_name}: ${date} at ${time}. They have 30 min to confirm, otherwise it passes to the next candidate.`);
-      onDone();
+      const r = await bookFn({ data: { waitlistId: entry.id, scheduledAt: dt.toISOString() } });
+      setResult(r);
+      if (r.emailed) {
+        toast.success(`Proposal sent to ${entry.customer_name}: ${date} at ${time}. They have 30 min to confirm, otherwise it passes to the next candidate.`);
+      } else {
+        toast.warning('Proposal created, but the email could not be sent — copy the confirmation link below.');
+      }
     } catch (e) {
       toast.error(errMsg(e));
     } finally {
       setBusy(false);
     }
   };
+
+  const copyLink = async () => {
+    if (!result) return;
+    try { await navigator.clipboard.writeText(result.link); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { toast.error('Copy failed — select the link manually.'); }
+  };
+
+  if (result) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(3,14,28,0.85)', backdropFilter: 'blur(12px)' }}>
+        <div className="w-full max-w-sm rounded-2xl p-6 animate-scale-in" style={{ background: T.card, border: `1px solid ${T.cardBorderStrong}` }}>
+          <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 300, color: T.text, marginBottom: 4 }}>Proposal created ✓</h2>
+          <p style={{ fontSize: 13, color: T.textMid, marginBottom: 14 }}>for <strong style={{ color: T.text }}>{entry.customer_name}</strong> — {date} at {time}. They have 30 min to confirm, otherwise it passes to the next candidate.</p>
+          {result.emailed ? (
+            <div className="p-3 rounded-xl mb-4" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)' }}>
+              <p style={{ fontSize: 12, color: '#4ADE80', margin: 0 }}>✓ Confirmation email sent to {entry.email}</p>
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl mb-4" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)' }}>
+              <p style={{ fontSize: 12, color: '#F87171', margin: 0, lineHeight: 1.5 }}>✗ Email could not be sent{result.emailReason ? `: ${result.emailReason}` : '.'} Send the confirmation link to the customer yourself (check spam, or Settings → Test email).</p>
+            </div>
+          )}
+          <label style={{ display: 'block', fontFamily: 'JetBrains Mono', fontSize: 10, color: T.textDim, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Confirmation link</label>
+          <div className="p-2.5 rounded-lg mb-4 flex items-center gap-2" style={{ background: T.input, border: `1px solid ${T.cardBorder}` }}>
+            <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono', color: '#22D3EE', wordBreak: 'break-all', flex: 1 }}>{result.link}</span>
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={copyLink} className="flex-1 btn-ghost py-3 rounded-xl text-sm font-semibold">{copied ? '✓ Copied' : 'Copy link'}</button>
+            <a href={result.link} target="_blank" rel="noopener noreferrer" className="flex-1 btn-ghost no-underline py-3 rounded-xl text-sm font-semibold text-center" style={{ color: T.text }}>Open</a>
+          </div>
+          <button type="button" onClick={onDone} className="btn-water w-full py-3 rounded-xl text-sm font-semibold mt-3">Done</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(3,14,28,0.85)', backdropFilter: 'blur(12px)' }}>
@@ -338,9 +378,13 @@ export default function Waitlist() {
     if (!slot || !selected) return;
     setSending(true);
     try {
-      await send({ data: { jobId: slot.id, waitlistId: selected.entry.id } });
+      const r = await send({ data: { jobId: slot.id, waitlistId: selected.entry.id } }) as { emailed?: boolean };
       setMatches(null); setSelected(null); refetch();
-      toast.success('30-minute priority offer created');
+      if (r?.emailed === false) {
+        toast.warning('Offer created, but the email failed — check Settings → Test email, or ask the customer to check spam.');
+      } else {
+        toast.success('30-minute priority offer created');
+      }
     } catch (e) { toast.error(errMsg(e)); }
     finally { setSending(false); }
   };
