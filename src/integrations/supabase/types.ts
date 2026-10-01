@@ -35,6 +35,21 @@ export type Database = {
         }
         Relationships: []
       }
+      internal_cron_key: {
+        Row: {
+          id: number
+          key: string
+        }
+        Insert: {
+          id?: number
+          key?: string
+        }
+        Update: {
+          id?: number
+          key?: string
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           access_status: string | null

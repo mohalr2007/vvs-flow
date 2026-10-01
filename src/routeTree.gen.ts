@@ -30,6 +30,7 @@ import { Route as OfferTokenRouteImport } from './routes/offer.$token'
 import { Route as RescheduleTokenRouteImport } from './routes/reschedule.$token'
 import { Route as DashboardJobsJobIdRouteImport } from './routes/dashboard.jobs_.$jobId'
 import { Route as DashboardProjectsProjectIdRouteImport } from './routes/dashboard.projects_.$projectId'
+import { Route as ApiPublicCronOffersRouteImport } from './routes/api/public/cron/offers'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -137,6 +138,11 @@ const DashboardProjectsProjectIdRoute =
     path: '/projects/$projectId',
     getParentRoute: () => DashboardRoute,
   } as any)
+const ApiPublicCronOffersRoute = ApiPublicCronOffersRouteImport.update({
+  id: '/api/public/cron/offers',
+  path: '/api/public/cron/offers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/jobs/$jobId': typeof DashboardJobsJobIdRoute
   '/dashboard/projects/$projectId': typeof DashboardProjectsProjectIdRoute
+  '/api/public/cron/offers': typeof ApiPublicCronOffersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -182,6 +189,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
   '/dashboard/jobs/$jobId': typeof DashboardJobsJobIdRoute
   '/dashboard/projects/$projectId': typeof DashboardProjectsProjectIdRoute
+  '/api/public/cron/offers': typeof ApiPublicCronOffersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -206,6 +214,7 @@ export interface FileRoutesById {
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/jobs_/$jobId': typeof DashboardJobsJobIdRoute
   '/dashboard/projects_/$projectId': typeof DashboardProjectsProjectIdRoute
+  '/api/public/cron/offers': typeof ApiPublicCronOffersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -231,6 +240,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/dashboard/jobs/$jobId'
     | '/dashboard/projects/$projectId'
+    | '/api/public/cron/offers'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/dashboard/jobs/$jobId'
     | '/dashboard/projects/$projectId'
+    | '/api/public/cron/offers'
   id:
     | '__root__'
     | '/'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/dashboard/jobs_/$jobId'
     | '/dashboard/projects_/$projectId'
+    | '/api/public/cron/offers'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -289,6 +301,7 @@ export interface RootRouteChildren {
   AccessTokenRoute: typeof AccessTokenRoute
   OfferTokenRoute: typeof OfferTokenRoute
   RescheduleTokenRoute: typeof RescheduleTokenRoute
+  ApiPublicCronOffersRoute: typeof ApiPublicCronOffersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -440,6 +453,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardProjectsProjectIdRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/api/public/cron/offers': {
+      id: '/api/public/cron/offers'
+      path: '/api/public/cron/offers'
+      fullPath: '/api/public/cron/offers'
+      preLoaderRoute: typeof ApiPublicCronOffersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -486,6 +506,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccessTokenRoute: AccessTokenRoute,
   OfferTokenRoute: OfferTokenRoute,
   RescheduleTokenRoute: RescheduleTokenRoute,
+  ApiPublicCronOffersRoute: ApiPublicCronOffersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

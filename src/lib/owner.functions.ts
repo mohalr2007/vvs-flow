@@ -99,8 +99,10 @@ export async function cascadeWaitlistOffer(db: Ctx["supabase"], jobId: string, n
   if (bestNext.entry.email) {
     const { sendEmail, offerEmail, offerUrl } = await import("./email.server");
     const when = new Date(slot.scheduled_at).toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-    const mail = offerEmail({ name: bestNext.entry.customer_name, title: bestNext.entry.title || "Plumbing Service", when, offerUrl: offerUrl(offer.token) });
-    await sendEmail(bestNext.entry.email, mail.subject, mail.html).catch(() => null);
+    const deadline = new Date(Date.now() + effectiveExpiry * 60000).toLocaleTimeString("en-GB", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit" });
+    const mail = offerEmail({ name: bestNext.entry.customer_name, title: bestNext.entry.title || "Plumbing Service", when, offerUrl: offerUrl(offer.token), minutes: effectiveExpiry, deadline });
+    const r = await sendEmail(bestNext.entry.email, mail.subject, mail.html).catch((e) => ({ sent: false, reason: String(e) }));
+    if (!r.sent) console.error("Waitlist offer email failed:", bestNext.entry.email, r.reason);
   }
   return true;
 }
@@ -312,8 +314,11 @@ export const sendOffer = createServerFn({ method: "POST" }).middleware([requireS
   if (entry.email) {
     const { sendEmail, offerEmail, offerUrl } = await import("./email.server");
     const when = new Date(slot.scheduled_at).toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-    const mail = offerEmail({ name: entry.customer_name, title: entry.title, when, offerUrl: offerUrl(offer.token) });
-    emailed = (await sendEmail(entry.email, mail.subject, mail.html).catch(() => ({ sent: false }))).sent;
+    const deadline = new Date(Date.now() + effectiveExpiry * 60000).toLocaleTimeString("en-GB", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit" });
+    const mail = offerEmail({ name: entry.customer_name, title: entry.title, when, offerUrl: offerUrl(offer.token), minutes: effectiveExpiry, deadline });
+    const r = await sendEmail(entry.email, mail.subject, mail.html).catch((e) => ({ sent: false, reason: String(e) }));
+    emailed = r.sent;
+    if (!r.sent) console.error("Waitlist offer email failed:", entry.email, r.reason);
   }
   return { token: offer.token, secondsLeft: effectiveExpiry * 60, emailed };
 });
