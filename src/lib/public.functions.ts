@@ -64,13 +64,17 @@ async function conflictAfterInsert(db: Awaited<ReturnType<typeof admin>>, id: st
   });
 }
 async function expireOffers(db: Awaited<ReturnType<typeof admin>>, now: Date) {
-  const { data } = await db.from("offers").select("id,waitlist_id,source_job_id").eq("status", "pending").lt("expires_at", now.toISOString());
+  const { data } = await db.from("offers").select("id,waitlist_id,source_job_id,slot_start,duration_min").eq("status", "pending").lt("expires_at", now.toISOString());
   for (const o of data ?? []) {
     await db.from("offers").update({ status: "expired" }).eq("id", o.id);
     await db.from("waitlist_entries").update({ status: "waiting" }).eq("id", o.waitlist_id);
     if (o.source_job_id) {
       const { cascadeWaitlistOffer } = await import("./owner.functions");
       await cascadeWaitlistOffer(db, o.source_job_id, now, 30).catch((e) => console.warn("Cascade failed:", e));
+    } else {
+      // Direct owner proposal: the same owner-chosen time goes to the next candidate in line.
+      const { cascadeDirectOffer } = await import("./owner.functions");
+      await cascadeDirectOffer(db, o, now).catch((e) => console.warn("Direct cascade failed:", e));
     }
   }
 }
@@ -265,6 +269,10 @@ export const respondOffer = createServerFn({ method: "POST" })
       if (offer.source_job_id) {
         const { cascadeWaitlistOffer } = await import("./owner.functions");
         await cascadeWaitlistOffer(db, offer.source_job_id, now, 30).catch((e) => console.warn("Cascade failed:", e));
+      } else {
+        // Declined direct proposal: the same owner-chosen time goes to the next candidate.
+        const { cascadeDirectOffer } = await import("./owner.functions");
+        await cascadeDirectOffer(db, offer, now).catch((e) => console.warn("Direct cascade failed:", e));
       }
       return { status: "declined" as const, accessToken: null };
     }

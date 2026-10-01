@@ -71,7 +71,7 @@ Mats est plombier **solo** : il fait le travail ET gère le business, sans secr�
 - **Overview** : compteurs temps réel (à revoir, évaluations, accès, **slots ouverts à récupérer**, projets, abandons), revenu à risque en SEK, capacité restante du jour, **premier slot ouvert**.
 - **Calendar** : agenda 7 jours, RDV + tâches de chantier, buffers de trajet, annulation → **déclenche la cascade waitlist automatiquement**.
 - **Jobs** : pipeline (new → qualified → confirmed → in_progress → completed), détails client, photo du problème, planification, statuts. Compléter un job génère la fiche **ROT**.
-- **Waitlist** : entrées scorées avec **explication du score** (breakdown détaillé), offres en cours avec countdown, offres manuelles au candidat choisi, réservation directe, suppression, purge.
+- **Waitlist** : entrées scorées avec **explication du score** (breakdown détaillé), offres en cours avec countdown, offres manuelles au candidat choisi, **proposition d'horaire directe** (Mats choisit l'heure — même hors horaires — le client doit la confirmer sous 30 min, sinon la même heure part automatiquement au candidat suivant), suppression, purge.
 - **Leads** : New → Qualified → Held → Abandoned → Converted.
 - **Projects** : flux 8 étapes (demande → visite → review → approbation → planifié → en cours → terminé), planification multi-jours (jours de repos, jours de retard), **devis complet** (matériaux, main-d'œuvre, acompte, échéances).
 - **Inbox** : coller un message client brut → l'IA le structure → 1 clic → job créé (confiance < 60 % → évaluation humaine obligatoire).

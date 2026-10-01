@@ -165,7 +165,7 @@ function BookModal({ entry, T, onClose, onDone }: {
         throw new Error('Invalid date or time');
       }
       await bookFn({ data: { waitlistId: entry.id, scheduledAt: dt.toISOString() } });
-      toast.success(`Appointment confirmed for ${entry.customer_name} on ${date} at ${time}`);
+      toast.success(`Proposal sent to ${entry.customer_name}: ${date} at ${time}. They have 30 min to confirm, otherwise it passes to the next candidate.`);
       onDone();
     } catch (e) {
       toast.error(errMsg(e));
@@ -177,12 +177,12 @@ function BookModal({ entry, T, onClose, onDone }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(3,14,28,0.85)', backdropFilter: 'blur(12px)' }}>
       <div className="w-full max-w-sm rounded-2xl p-6 animate-scale-in" style={{ background: T.card, border: `1px solid ${T.cardBorderStrong}` }}>
-        <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 300, color: T.text, marginBottom: 4 }}>Book appointment</h2>
+        <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 300, color: T.text, marginBottom: 4 }}>Propose a time</h2>
         <p style={{ fontSize: 13, color: T.textMid, marginBottom: 16 }}>for <strong style={{ color: T.text }}>{entry.customer_name}</strong> — {entry.title || 'Plumbing request'}</p>
 
         <div className="p-3 rounded-xl mb-4" style={{ background: 'rgba(8,145,178,0.06)', border: '1px solid rgba(8,145,178,0.2)' }}>
           <p style={{ fontSize: 11, color: '#22D3EE', margin: 0 }}>
-            ✓ Any hour accepted: you can choose daytime, evening, or after-hours slots.
+            ✓ Any hour accepted: daytime, evening, or after-hours. The customer must confirm within 30 min — otherwise the same time is automatically offered to the next candidate.
           </p>
         </div>
 
@@ -236,7 +236,7 @@ function BookModal({ entry, T, onClose, onDone }: {
             className="flex-1 btn-water py-3 rounded-xl text-sm font-semibold"
             style={{ opacity: (!date || busy) ? 0.5 : 1, cursor: (!date || busy) ? 'not-allowed' : 'pointer' }}
           >
-            {busy ? 'Booking…' : 'Confirm booking →'}
+            {busy ? 'Sending…' : 'Send proposal →'}
           </button>
         </div>
       </div>

@@ -17,7 +17,7 @@ async function guard(ctx: Ctx) {
   return { db: ctx.supabase, settings: s, now };
 }
 async function expireOffers(db: Ctx["supabase"], now: Date) {
-  const { data } = await db.from("offers").select("id,waitlist_id,source_job_id").eq("status", "pending").lt("expires_at", now.toISOString());
+  const { data } = await db.from("offers").select("id,waitlist_id,source_job_id,slot_start,duration_min").eq("status", "pending").lt("expires_at", now.toISOString());
   for (const o of data ?? []) {
     await db.from("offers").update({ status: "expired" }).eq("id", o.id);
     // Candidate #1 returns safely to the waitlist (status: waiting)
@@ -25,6 +25,9 @@ async function expireOffers(db: Ctx["supabase"], now: Date) {
     // Auto-cascade: automatically propose the slot to the NEXT best match in the waitlist (Candidate #2)
     if (o.source_job_id) {
       await cascadeWaitlistOffer(db, o.source_job_id, now, 30).catch((e) => console.warn("Cascade after expiry failed:", e));
+    } else {
+      // Direct owner proposal: the same owner-chosen time goes to the next candidate in line.
+      await cascadeDirectOffer(db, o, now).catch((e) => console.warn("Direct cascade after expiry failed:", e));
     }
   }
 }
@@ -103,6 +106,44 @@ export async function cascadeWaitlistOffer(db: Ctx["supabase"], jobId: string, n
     const mail = offerEmail({ name: bestNext.entry.customer_name, title: bestNext.entry.title || "Plumbing Service", when, offerUrl: offerUrl(offer.token), minutes: effectiveExpiry, deadline });
     const r = await sendEmail(bestNext.entry.email, mail.subject, mail.html).catch((e) => ({ sent: false, reason: String(e) }));
     if (!r.sent) console.error("Waitlist offer email failed:", bestNext.entry.email, r.reason);
+  }
+  return true;
+}
+
+/** A direct owner proposal (no source job) went unanswered or was declined:
+ * the SAME owner-chosen time is automatically offered to the next candidate in line. */
+export async function cascadeDirectOffer(db: Ctx["supabase"], expired: { slot_start: string; duration_min: number }, now: Date): Promise<boolean> {
+  const startMs = new Date(expired.slot_start).getTime(), endMs = startMs + expired.duration_min * 60000;
+  if (isNaN(startMs) || startMs - now.getTime() <= 2 * 60000) return false;
+  // The chosen time must still be free.
+  const { data: busy } = await db.from("jobs").select("id,scheduled_at,duration_min,status").not("scheduled_at", "is", null);
+  if ((busy ?? []).some((o) => jobOverlaps(o, startMs, endMs))) return false;
+  // Everyone already proposed this exact time is skipped — the next candidate in line gets it.
+  const { data: past } = await db.from("offers").select("waitlist_id").eq("slot_start", expired.slot_start).eq("duration_min", expired.duration_min);
+  const proposed = new Set(((past ?? []) as { waitlist_id: string }[]).map((o) => o.waitlist_id));
+  const { data: entries } = await db.from("waitlist_entries").select("*").eq("status", "waiting").order("created_at");
+  const next = (entries ?? []).find((e) => !proposed.has(e.id));
+  if (!next) return false;
+  const effectiveExpiry = Math.min(30, Math.max(2, Math.floor((startMs - now.getTime()) / 60000) - 1));
+  const { score, breakdown } = scoreMatch(next, { zone: next.zone, duration_min: expired.duration_min }, now);
+  const { data: offer, error } = await db.from("offers").insert({
+    waitlist_id: next.id,
+    source_job_id: null,
+    slot_start: expired.slot_start,
+    duration_min: expired.duration_min,
+    expires_at: new Date(now.getTime() + effectiveExpiry * 60000).toISOString(),
+    score,
+    breakdown,
+  }).select("token").single();
+  if (error || !offer) return false;
+  await db.from("waitlist_entries").update({ status: "offered" }).eq("id", next.id);
+  if (next.email) {
+    const { sendEmail, offerEmail, offerUrl } = await import("./email.server");
+    const when = new Date(expired.slot_start).toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    const deadline = new Date(now.getTime() + effectiveExpiry * 60000).toLocaleTimeString("en-GB", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit" });
+    const mail = offerEmail({ name: next.customer_name, title: next.title || "Plumbing Service", when, offerUrl: offerUrl(offer.token), minutes: effectiveExpiry, deadline });
+    const r = await sendEmail(next.email, mail.subject, mail.html).catch((e) => ({ sent: false, reason: String(e) }));
+    if (!r.sent) console.error("Waitlist offer email failed:", next.email, r.reason);
   }
   return true;
 }
@@ -355,7 +396,10 @@ export const clearWaitlist = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Owner books a slot directly for a waitlist candidate at a chosen time (any hour including after-hours/evenings). */
+/** Owner proposes a chosen time to a waitlist candidate (any hour including after-hours/evenings).
+ * This is a PROPOSAL, not a confirmed booking: the customer must confirm via their private offer
+ * link within the window — otherwise the same owner-chosen time is automatically offered to the
+ * next candidate in line and this entry returns to the waitlist. */
 export const bookFromWaitlist = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -365,77 +409,50 @@ export const bookFromWaitlist = createServerFn({ method: "POST" })
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
-    const { db } = await guard(context);
+    const { db, now } = await guard(context);
     const { data: entry, error: fetchErr } = await db.from("waitlist_entries").select("*").eq("id", data.waitlistId).single();
     if (fetchErr || !entry) throw new Error("Waitlist entry not found.");
 
     // Parse chosen date/time safely (accepts any custom time/evening/weekend)
     const scheduledDate = new Date(data.scheduledAt);
-    const scheduledIso = isNaN(scheduledDate.getTime()) ? new Date().toISOString() : scheduledDate.toISOString();
+    if (isNaN(scheduledDate.getTime())) throw new Error("Invalid date or time.");
+    const scheduledIso = scheduledDate.toISOString();
 
-    // Never double-book: the chosen time must be free of other active appointments.
+    // Never propose an occupied time: the full work duration must fit.
     const startMs = scheduledDate.getTime(), endMs = startMs + (entry.duration_min || 60) * 60000;
     const { data: others } = await db.from("jobs").select("id,scheduled_at,duration_min,status").not("scheduled_at", "is", null);
     if ((others ?? []).some((o) => jobOverlaps(o, startMs, endMs))) throw new Error("That time is already booked. Choose another time.");
 
-    const accessToken = crypto.randomUUID();
-    const shortRef = "W" + Math.floor(1000 + Math.random() * 9000);
+    const msToSlot = startMs - now.getTime();
+    if (msToSlot <= 2 * 60000) throw new Error("Pick a time at least a few minutes ahead.");
+    const effectiveExpiry = Math.min(30, Math.max(2, Math.floor(msToSlot / 60000) - 1));
 
-    const { data: job, error } = await db.from("jobs").insert({
-      ref: shortRef,
-      customer_name: entry.customer_name,
-      phone: entry.phone || "",
-      email: entry.email || "",
-      title: entry.title || "Waitlist appointment",
-      description: `Booked by owner from waitlist. Request: ${entry.title || ""}`,
-      address: entry.zone ? `Zone ${entry.zone}` : "Västerås",
-      zone: entry.zone || "722",
-      duration_min: entry.duration_min || 60,
-      urgency: entry.urgency || "Normal",
-      status: "confirmed",
-      scheduled_at: scheduledIso,
-      value: entry.value || 0,
-      access_token: accessToken,
-      confidence: 100,
-    }).select("id").single();
-
-    if (error) {
-      console.error("bookFromWaitlist insert error:", error);
-      throw new Error("Could not create appointment: " + error.message);
-    }
-
-    // Mark waitlist entry as booked
-    await db.from("waitlist_entries").update({ status: "booked" }).eq("id", data.waitlistId);
-    // Cancel any pending offers for this entry
+    // Any earlier pending proposal for this customer is superseded by this one.
     await db.from("offers").update({ status: "cancelled" }).eq("waitlist_id", data.waitlistId).eq("status", "pending");
-    // Any other offer pointing into the freshly booked window is stale now.
-    await cancelStaleOffers(db, startMs, endMs).catch((e) => console.warn("Stale-offer cleanup failed:", e));
 
-    // Send confirmation email if email present
+    const { score, breakdown } = scoreMatch(entry, { zone: entry.zone, duration_min: entry.duration_min || 60 }, now);
+    const { data: offer, error } = await db.from("offers").insert({
+      waitlist_id: entry.id,
+      source_job_id: null,
+      slot_start: scheduledIso,
+      duration_min: entry.duration_min || 60,
+      expires_at: new Date(now.getTime() + effectiveExpiry * 60000).toISOString(),
+      score,
+      breakdown,
+    }).select("token").single();
+    if (error || !offer) throw new Error("Could not create the proposal: " + (error?.message ?? "unknown error"));
+
+    await db.from("waitlist_entries").update({ status: "offered" }).eq("id", data.waitlistId);
+
     if (entry.email) {
-      const { sendEmail, layout, bookingUrl } = await import("./email.server");
-      const when = scheduledDate.toLocaleString("en-GB", {
-        timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
-      });
-      const accessLink = bookingUrl(accessToken);
-      const html = layout("Appointment Confirmed", `
-        <p style="margin: 0 0 14px 0;">Hello <strong>${entry.customer_name}</strong>,</p>
-        <p style="margin: 0 0 16px 0; color: #475569;">
-          Mats has reviewed your request from the waitlist and booked your appointment.
-        </p>
-        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0;">
-          <p style="margin: 0 0 4px 0; font-size: 11px; color: #166534; font-family: monospace; text-transform: uppercase;">Confirmed Appointment</p>
-          <p style="margin: 0; font-size: 18px; font-weight: 700; color: #15803d;">${when}</p>
-          <p style="margin: 6px 0 0 0; font-size: 13px; color: #166534;">${entry.title || "Plumbing Service"}</p>
-        </div>
-        <p style="margin: 0 0 16px 0; font-size: 13px; color: #475569;">
-          Reference: <strong>${shortRef}</strong>
-        </p>
-        ${accessLink ? `<div style="margin-top: 16px;"><a href="${accessLink}" style="background-color: #0891b2; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;">View Appointment & Access Details →</a></div>` : ""}
-      `, "Ekström VVS");
-      await sendEmail(entry.email, `✓ Appointment confirmed (${shortRef}) — Ekström VVS`, html).catch(() => null);
+      const { sendEmail, offerEmail, offerUrl } = await import("./email.server");
+      const when = scheduledDate.toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+      const deadline = new Date(now.getTime() + effectiveExpiry * 60000).toLocaleTimeString("en-GB", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit" });
+      const mail = offerEmail({ name: entry.customer_name, title: entry.title || "Plumbing Service", when, offerUrl: offerUrl(offer.token), minutes: effectiveExpiry, deadline });
+      const r = await sendEmail(entry.email, mail.subject, mail.html).catch((e) => ({ sent: false, reason: String(e) }));
+      if (!r.sent) console.error("Direct-booking proposal email failed:", entry.email, r.reason);
     }
-    return { jobId: job?.id ?? "", ok: true };
+    return { ok: true, token: offer.token, secondsLeft: effectiveExpiry * 60 };
   });
 
 
