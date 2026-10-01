@@ -41,6 +41,7 @@ export async function sendEmail(
   const emailjsTemplateId = process.env["EMAILJS_TEMPLATE_ID"];
   const emailjsPublicKey = process.env["EMAILJS_PUBLIC_KEY"];
   const emailjsPrivateKey = process.env["EMAILJS_PRIVATE_KEY"];
+  let emailjsReason: string | null = null;
 
   if (emailjsServiceId && emailjsTemplateId && emailjsPublicKey && emailjsPrivateKey) {
     try {
@@ -79,16 +80,20 @@ export async function sendEmail(
         return { sent: true };
       }
       const errText = await res.text();
-      console.warn(`EmailJS send returned ${res.status}: ${errText}`);
+      emailjsReason = `EmailJS error: ${errText}`;
+      console.warn(emailjsReason);
       if (!process.env["RESEND_API_KEY"]) {
-        return { sent: false, reason: `EmailJS error: ${errText}` };
+        return { sent: false, reason: emailjsReason };
       }
     } catch (err) {
+      emailjsReason = `EmailJS error: ${err instanceof Error ? err.message : "network error"}`;
       console.warn("EmailJS exception:", err);
       if (!process.env["RESEND_API_KEY"]) {
-        return { sent: false, reason: err instanceof Error ? err.message : "EmailJS network error" };
+        return { sent: false, reason: emailjsReason };
       }
     }
+  } else {
+    emailjsReason = "EmailJS is not configured (missing EMAILJS_* environment variables).";
   }
 
   // 2. Resend API support
@@ -126,23 +131,18 @@ export async function sendEmail(
         return { sent: true };
       }
       const body = await res.text();
-      console.error(`Resend API error [${res.status}]: ${body}`);
-      return { sent: false, reason: `Resend error ${res.status}: ${body}` };
+      const reason = [emailjsReason, `Resend error ${res.status}: ${body}`].filter(Boolean).join(" | ");
+      console.error(`sendEmail failed: ${reason}`);
+      return { sent: false, reason };
     } catch (err) {
-      console.error("Resend exception:", err);
-      return { sent: false, reason: err instanceof Error ? err.message : "Unknown send error" };
+      const reason = [emailjsReason, `Resend error: ${err instanceof Error ? err.message : "unknown"}`].filter(Boolean).join(" | ");
+      console.error(`sendEmail failed: ${reason}`);
+      return { sent: false, reason };
     }
   }
 
-  if (!process.env["EMAILJS_SERVICE_ID"] && !resendKey) {
-    console.warn("sendEmail: Neither EmailJS nor Resend is configured.");
-    return {
-      sent: false,
-      reason: "Email service not ready: please set EMAILJS_SERVICE_ID and EMAILJS_TEMPLATE_ID in Vercel environment variables.",
-    };
-  }
-
-  return { sent: true };
+  console.error(`sendEmail failed: ${emailjsReason}`);
+  return { sent: false, reason: emailjsReason ?? "No email engine is configured." };
 }
 
 export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
