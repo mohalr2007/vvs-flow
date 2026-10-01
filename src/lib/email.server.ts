@@ -15,7 +15,8 @@ export function getAppUrl(): string {
   if (vercelUrl) {
     return `https://${vercelUrl.replace(/\/$/, "")}`;
   }
-  return "https://b9506bcd-256a-4188-834f-9981db88d72f.lovableproject.com";
+  // Published site: always reachable by customers (the editor preview domain returns a proxy error).
+  return "https://pro-flow-ops.lovable.app";
 }
 
 export function getFromEmail(): string {
@@ -357,33 +358,42 @@ export function offerEmail(p: {
   title: string;
   when: string;
   offerUrl: string;
+  minutes?: number;
+  deadline?: string;
 }) {
+  const mins = p.minutes ?? 30;
   const content = `
     <p style="margin: 0 0 14px 0; font-size: 15px;">Hello <strong>${esc(p.name)}</strong>,</p>
     <p style="margin: 0 0 18px 0; color: #475569;">
-      Great news! An earlier slot has just opened in our schedule due to a recent cancellation, and as a priority waitlist member, we are offering it directly to you:
+      Good news — <strong>Mats has found a free time for your job</strong>. A slot just opened in his schedule and you are first in line on the waitlist.
     </p>
 
-    <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 0 0 20px 0;">
-      <p style="margin: 0 0 4px 0; font-size: 12px; color: #166534; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">📅 Available Date &amp; Time:</p>
-      <p style="margin: 0 0 6px 0; font-size: 20px; font-weight: 700; color: #15803d;">${esc(p.when)}</p>
-      <p style="margin: 0; font-size: 13px; color: #166534;">Service: <strong>${esc(p.title)}</strong></p>
+    <div style="background-color: #ecfeff; border: 1px solid #a5f3fc; border-radius: 10px; padding: 18px; margin: 0 0 20px 0;">
+      <p style="margin: 0 0 4px 0; font-size: 12px; color: #0e7490; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Proposed date &amp; time</p>
+      <p style="margin: 0 0 6px 0; font-size: 22px; font-weight: 700; color: #0f172a;">${esc(p.when)}</p>
+      <p style="margin: 0; font-size: 13px; color: #155e75;">Job: <strong>${esc(p.title)}</strong></p>
     </div>
 
-    <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0; font-size: 13px; color: #92400e;">
-      ⏱ <strong>You have 30 minutes</strong> to claim this slot. To prevent double-booking and keep schedules fair, if you don't accept in time, this slot will automatically roll over to the next customer on the waitlist, while you remain on the waitlist for future openings.
-    </div>
+    <p style="margin: 0 0 6px 0; font-size: 16px; font-weight: 700; color: #0f172a; text-align: center;">Do you confirm this appointment?</p>
+    <p style="margin: 0 0 4px 0; font-size: 13px; color: #475569; text-align: center;">
+      Please confirm within <strong>${mins} minutes</strong>${p.deadline ? ` (before <strong>${esc(p.deadline)}</strong>)` : ""}.
+    </p>
 
-    ${button(p.offerUrl, "Claim This Slot Now")}
+    ${button(p.offerUrl, "Yes, confirm my appointment")}
+
+    <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 16px; margin: 18px 0 0 0; font-size: 13px; color: #92400e;">
+      If you don't confirm in time, this slot is automatically offered to the next person on the waitlist. You keep your place for future openings.
+    </div>
 
     <p style="margin: 14px 0 0 0; font-size: 12px; color: #94a3b8; text-align: center;">
-      If you no longer need an appointment, no action is required — the slot will simply pass to the next customer.
+      Button not working? Copy this link into your browser:<br>
+      <a href="${esc(p.offerUrl)}" style="color: #0891b2; word-break: break-all;">${esc(p.offerUrl)}</a>
     </p>
   `;
 
   return {
-    subject: `⚡ Earlier Slot Available: ${p.when} — Ekström VVS`,
-    html: layout("An Earlier Slot Has Opened For You", content, "30-Minute Priority Window"),
+    subject: `Mats found a time for you: ${p.when} — please confirm within ${mins} min`,
+    html: layout("Please confirm your appointment", content, `Confirm within ${mins} minutes`),
   };
 }
 
