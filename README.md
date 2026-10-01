@@ -70,7 +70,7 @@ $$\text{Score} = w_{\text{urgency}} + w_{\text{route}} + w_{\text{value}} + w_{\
 * Slots offered to waitlist candidates are protected by database-level concurrency locks.
 * Every offer includes a strict 30-minute expiration timestamp (`expires_at`).
 * If expired or declined, the engine automatically rolls over and notifies the next best-suited customer in the queue.
-* Expiry is evaluated on every page read — no cron jobs: the offer page itself refreshes the moment its countdown hits zero, and the owner dashboard re-checks on every open, so the rollover runs without any owner action.
+* Offer expiry runs two ways: a pg_cron job pings the app every minute (unanswered offers roll over to the next candidate even with nobody online), and expiry is additionally evaluated on every page read — the offer page itself refreshes the moment its countdown hits zero. No owner action, ever.
 
 ---
 

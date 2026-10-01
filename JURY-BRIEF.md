@@ -9,7 +9,7 @@
 |---|---|
 | **Projet** | VVS Flow — Autonomous Dispatch & Priority Waitlist Platform |
 | **Client fictif** | Ekström VVS AB — plombier solo, Västerås, Suède (Mats Ekström, est. 1994) |
-| **App en ligne (publique)** | https://b9506bcd-256a-4188-834f-9981db88d72f.lovableproject.com — s'ouvre sans compte ; les liens `id-preview--…lovable.app` sont des previews Lovable qui exigent une connexion et ne doivent pas être partagés |
+| **App en ligne (publique)** | https://pro-flow-ops.lovable.app — s'ouvre sans compte ; les liens `id-preview--…` (préviews) et `lovableproject.com` sont internes à Lovable et ne doivent pas être partagés |
 | **Repo GitHub (public)** | https://github.com/mohalr2007/vvs-flow.git |
 | **Connexion jury** | Ouvrir `/login` → bouton **« ✦ Accès Jury & Démo — Sans mot de passe »** → connexion instantanée au dashboard owner complet (compte démo provisionné automatiquement : `mats.demo@vvsflow.local`, rôle owner) |
 | **Visite guidée** | `/demo` — scénarios guidés + le brief client + les stats d'impact |
@@ -86,7 +86,7 @@ Mats est plombier **solo** : il fait le travail ET gère le business, sans secr�
 2. **Gardes en amont** : le créneau n'est pas repris par un job actif (check d'overlap), pas d'offre déjà en cours sur ce slot, créneau à plus de 2 min.
 3. **Sélection déterministe** (`scoreMatch` — voir §7) : les candidats `waiting` non déjà contactés pour ce slot sont scorés ; seuls ceux dont la **durée rentre** dans le créneau sont éligibles.
 4. **Offre 30 min** : `expires_at = maintenant + 30 min`, **plafonné pour ne jamais dépasser le début du créneau**. E-mail avec lien privé `/offer/:token`.
-5. **Expiration / refus** — évaluée à chaque lecture de page, **sans cron** : le compte à rebours de la page d'offre rafraîchit lui-même la requête à zéro (déclenchant l'expiration et la cascade en direct), et le dashboard owner revérifie à chaque ouverture — donc aucune action manuelle du owner n'est jamais requise. Le candidat expire → repasse `waiting`, **le candidat suivant est automatiquement contacté**. Personne d'éligible → le slot reste ouvert, visible au owner dans Overview (« open slots » + revenu à risque).
+5. **Expiration / refus** — **double déclencheur, sans aucune action du owner** : un job `pg_cron` interne interroge l'app **chaque minute** (les offres sans réponse expirent et la cascade part même si personne n'a l'app ouvert), et l'expiration est aussi évaluée à chaque lecture de page (le compte à rebours de l'offre se rafraîchit lui-même à zéro ; le dashboard owner revérifie à l'ouverture). Le candidat expire → repasse `waiting`, **le candidat suivant est automatiquement contacté**. Personne d'éligible → le slot reste ouvert, visible au owner dans Overview (« open slots » + revenu à risque).
 6. **Acceptation** : saisie de **l'adresse d'intervention** (pin carte ou texte, gate 40 km, géocodage serveur) → vérification que le créneau n'a pas été repris entre-temps → **claim atomique** de l'offre (`pending → accepted` en une requête conditionnelle) → **récupération en place** : la ligne du RDV annulé devient elle-même le rendez-vous confirmé du candidat **avec son adresse et ses coordonnées** (nouveau token d'accès — l'ancien lien client expire) → garde anti-course post-écriture avec **rollback par snapshot complet** si un conflit survient → e-mail de confirmation au client.
 7. **Résultat visible** : le créneau disparaît des « slots ouverts », l'agenda affiche la réservation confirmée, l'entrée waitlist passe `booked`. **Zéro clic owner de bout en bout.**
 
@@ -173,7 +173,7 @@ Double moteur : **EmailJS** (gratuit, 200 e-mails/mois) avec bascule automatique
 
 ## 11. Limites connues (transparence)
 
-- L'expiration des offres et la cascade sont évaluées **à la lecture des pages** (la page d'offre se rafraîchit à zéro, le dashboard owner revérifie à l'ouverture) : aucun cron ne tourne en tâche de fond — si personne n'ouvre aucune page, le slot reste en attente jusqu'au prochain affichage.
+- L'expiration des offres est pilotée par un **job `pg_cron` interne (chaque minute** — migration 0007, endpoint authentifié par clé) avec repli sur l'évaluation à chaque lecture de page ; le rythme d'une minute est très inférieur à la fenêtre d'offre de 30 min.
 - Quota EmailJS gratuit (200/mois) : adapté à la démo, pas à la production (Resend en alternative déjà intégré).
 - Temps de route OSRM sans trafic temps réel (estimation). E-mails et interface en anglais (produit présenté à un jury international).
 
