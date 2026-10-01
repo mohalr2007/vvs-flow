@@ -219,13 +219,18 @@ export const scheduleJob = createServerFn({ method: "POST" }).middleware([requir
   await cancelStaleOffers(db, startMs, endMs).catch((e) => console.warn("Stale-offer cleanup failed:", e));
   // Send reminder emails based on how far the appointment is
   if (job?.email) {
-    const { sendEmail, reminder24hEmail, reminder1hEmail, bookingUrl } = await import("./email.server");
+    const { sendEmail, reminder24hEmail, reminder1hEmail, bookingConfirmationEmail, bookingUrl } = await import("./email.server");
     const apptTime = new Date(startIso);
     const msUntil = apptTime.getTime() - now.getTime();
     const hoursUntil = msUntil / 3600000;
     const when = apptTime.toLocaleString("en-GB", { timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
     const accessUrl = job.access_token ? bookingUrl(job.access_token) : null;
     const emailParams = { name: job.customer_name, title: job.title, when, ref: job.ref, accessUrl };
+    // Mats chose this time himself (suggested slot or custom/after-hours): the
+    // customer gets the booking confirmation immediately — no calendar step in
+    // between — then the distance-based reminder on top.
+    const confirmation = bookingConfirmationEmail(emailParams);
+    await sendEmail(job.email, confirmation.subject, confirmation.html).catch(() => null);
     if (hoursUntil >= 24) {
       const mail24 = reminder24hEmail(emailParams);
       await sendEmail(job.email, mail24.subject, mail24.html).catch(() => null);
