@@ -158,6 +158,16 @@ EMAILJS_PRIVATE_KEY="your_private_key"
 > provider dashboard (EmailJS → Account → API keys). Removing the file from the latest
 > commit does not erase history; rotation is the effective remediation.
 
+**EmailJS template setup** (dashboard.emailjs.com → Email Templates → your template):
+
+| Template field | Value |
+|---|---|
+| To Email | `{{to_email}}` |
+| Subject | `{{subject}}` |
+| Content | `{{{html_message}}}` — **triple braces**, the body is full HTML |
+
+The server sends every plausible variable alias (`to_email`, `subject`, `html_message`, `content`, `body`…), so any reasonable template layout renders — but these three are the recommended settings.
+
 ---
 
 ## 📄 License & Attribution

@@ -59,8 +59,16 @@ export async function sendEmail(
             to: to,
             subject: subject,
             title: subject,
+            email_subject: subject,
+            // Body aliases: whichever variable the EmailJS template references
+            // ({{{html_message}}}, {{content}}, {{body}}…) always carries the HTML.
             message: html,
             html_message: html,
+            html: html,
+            content: html,
+            body: html,
+            html_content: html,
+            email_html: html,
             company_name: "Ekström VVS",
             app_url: getAppUrl(),
           },
