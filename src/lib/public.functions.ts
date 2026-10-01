@@ -393,12 +393,15 @@ export const joinWaitlist = createServerFn({ method: "POST" })
           <p style="margin: 0; font-size: 16px; font-weight: 700; color: #15803d;">${data.title || "Plumbing service"}</p>
           <p style="margin: 4px 0 0 0; font-size: 12px; color: #166534;">Zone: ${zone} · Address: ${data.address}</p>
         </div>
-        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px 0; font-size: 13px; color: #475569;">
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin: 0 0 14px 0; font-size: 13px; color: #475569;">
           <strong>⚡ How priority recovery works:</strong>
           <p style="margin: 6px 0 0 0; line-height: 1.5;">
             Whenever another customer cancels or reschedules on Mats's route near you, our system instantly selects the best match and sends an exclusive <strong>30-minute priority booking link</strong> straight to your email.
           </p>
         </div>
+        <p style="margin: 0 0 18px 0; font-size: 13px; color: #475569; background-color: #ecfeff; border: 1px solid #a5f3fc; border-radius: 8px; padding: 12px 14px;">
+          <strong>No action is needed right now.</strong> This email is your registration receipt — your personal <strong>confirm button</strong> arrives in the priority offer email the moment a slot opens for you.
+        </p>
       `;
       const mailHtml = layout("Priority Waitlist Confirmation", content, "Ekström VVS • Priority Waitlist");
       await sendEmail(data.email, `✓ Registered on Priority Waitlist · Ekström VVS`, mailHtml).catch(() => null);
